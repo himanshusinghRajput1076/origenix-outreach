@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "origenixdigitalsolution",
+    "site": "origenix-outreach",
     "public": "dist",
     "ignore": [
       "firebase.json",
