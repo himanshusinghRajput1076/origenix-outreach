@@ -996,3 +996,214 @@ textarea.form-input {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gray-300); }
+
+/* ============================================
+   CRM & KANBAN STYLES
+   ============================================ */
+.crm-kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.crm-kanban-column {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 480px;
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+.crm-column-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.crm-column-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.crm-column-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--gray-700);
+  flex: 1;
+}
+
+.crm-column-count {
+  background: var(--gray-200);
+  color: var(--gray-600);
+  border-radius: 99px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.crm-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.crm-column-empty {
+  border: 2px dashed var(--gray-200);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: var(--gray-400);
+  font-size: 0.75rem;
+  font-style: italic;
+  margin: auto 0;
+}
+
+.crm-card {
+  background: #ffffff;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.crm-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+  border-color: var(--gray-200);
+}
+
+.crm-card:active {
+  cursor: grabbing;
+}
+
+.crm-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.crm-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--gray-800);
+  margin-bottom: 2px;
+}
+
+.crm-card-company {
+  font-size: 0.76rem;
+  color: var(--gray-500);
+  margin-bottom: 8px;
+}
+
+.crm-card-followup {
+  font-size: 0.72rem;
+  color: var(--gray-400);
+  border-top: 1px solid var(--gray-50);
+  padding-top: 6px;
+  margin-top: 6px;
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 24px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--gray-100);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--gray-100);
+  padding-bottom: 12px;
+}
+
+.modal-close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  color: var(--gray-400);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--gray-700);
+}
+
+/* Timeline */
+.crm-timeline-item {
+  position: relative;
+  padding-left: 16px;
+  border-left: 2px solid var(--gray-200);
+  padding-bottom: 16px;
+}
+
+.crm-timeline-dot {
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-400);
+}
+
+.crm-timeline-date {
+  font-size: 0.72rem;
+  color: var(--gray-400);
+  margin-bottom: 2px;
+}
+
+.crm-timeline-text {
+  font-size: 0.85rem;
+  color: var(--gray-700);
+  line-height: 1.4;
+}
+
+.crm-list-row:hover {
+  background-color: var(--gray-50);
+}
+
+@media (max-width: 1024px) {
+  .crm-kanban-board {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+

@@ -1,4 +1,4 @@
-export default function Dashboard({ clientContacts, investorContacts, onNavigate }) {
+export default function Dashboard({ clientContacts, investorContacts, leadsCount = 0, onNavigate }) {
   const clientEmails = clientContacts.filter(c => c.email).length
   const investorEmails = investorContacts.filter(c => c.email).length
   const clientPhones = clientContacts.filter(c => c.phone).length
@@ -89,6 +89,21 @@ export default function Dashboard({ clientContacts, investorContacts, onNavigate
               Go to Investors →
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '16px' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 className="card-title">📊 Leads CRM Pipeline</h3>
+          <span className="tag" style={{ background: 'var(--blue-light)', color: 'var(--blue)', fontWeight: 600 }}>{leadsCount.toLocaleString()} Active Leads</span>
+        </div>
+        <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: '16px' }}>
+          Track deal/investment stages, log phone/chat timelines, set follow-up tasks, and view contact statistics.
+        </p>
+        <div className="btn-group">
+          <button className="btn btn-secondary" onClick={() => onNavigate('crm')}>
+            Open CRM Board →
+          </button>
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import ExcelUploader from './ExcelUploader'
 import MessageComposer from './MessageComposer'
 
-export default function ClientsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast }) {
+export default function ClientsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast, onImportCRM }) {
   const [headers, setHeaders] = useState([])
   const [activeTab, setActiveTab] = useState('upload')
 
@@ -77,11 +77,16 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
 
       {activeTab === 'contacts' && (
         <div className="card">
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="card-title">Your contacts</h3>
-            {contacts.length > 0 && (
-              <span className="contact-count"><strong>{contacts.length}</strong> loaded</span>
-            )}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {contacts.length > 0 && (
+                <>
+                  <span className="contact-count"><strong>{contacts.length}</strong> loaded</span>
+                  <button className="btn btn-sm btn-client" onClick={() => onImportCRM(contacts)}>Import to CRM</button>
+                </>
+              )}
+            </div>
           </div>
           {contacts.length === 0 ? (
             <div className="empty-state">

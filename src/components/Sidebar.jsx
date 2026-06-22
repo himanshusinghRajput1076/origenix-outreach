@@ -1,4 +1,4 @@
-export default function Sidebar({ activePanel, setActivePanel, clientCount, investorCount }) {
+export default function Sidebar({ activePanel, setActivePanel, clientCount, investorCount, leadsCount }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -39,6 +39,16 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
           {investorCount > 0 && <span className="nav-badge">{investorCount.toLocaleString()}</span>}
         </button>
 
+        <button
+          className={`nav-item ${activePanel === 'crm' ? 'active dashboard' : ''}`}
+          style={activePanel === 'crm' ? { borderLeft: '4px solid var(--accent-gradient-start)' } : {}}
+          onClick={() => setActivePanel('crm')}
+        >
+          <span className="nav-icon">📊</span>
+          <span>Leads CRM</span>
+          {leadsCount > 0 && <span className="nav-badge" style={{ background: 'var(--blue)' }}>{leadsCount.toLocaleString()}</span>}
+        </button>
+
         <div className="sidebar-section-label">Setup</div>
         <button
           className={`nav-item ${activePanel === 'profile' ? 'active dashboard' : ''}`}
@@ -55,3 +65,4 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
     </aside>
   )
 }
+
