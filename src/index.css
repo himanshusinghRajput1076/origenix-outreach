@@ -1,0 +1,998 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ============================================
+   A warm, clean design — nothing fancy,
+   just something that feels good to use.
+   ============================================ */
+
+:root {
+  --white: #ffffff;
+  --off-white: #fafafa;
+  --gray-50: #f8f8f8;
+  --gray-100: #f1f1f1;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --blue-soft: #dbeafe;
+
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --green-soft: #dcfce7;
+
+  --orange: #ea580c;
+  --orange-light: #fff7ed;
+
+  --red: #dc2626;
+  --red-light: #fef2f2;
+
+  --purple: #7c3aed;
+  --purple-light: #f5f3ff;
+  --purple-soft: #ede9fe;
+
+  --teal: #0d9488;
+  --teal-light: #f0fdfa;
+  --teal-soft: #ccfbf1;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html { font-size: 15px; }
+
+body {
+  font-family: var(--font);
+  background: var(--off-white);
+  color: var(--gray-800);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { min-height: 100vh; }
+
+/* ============================================
+   LAYOUT — sidebar + main
+   ============================================ */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  padding: 32px 40px;
+}
+
+.page-content {
+  max-width: 960px;
+}
+
+/* ============================================
+   SIDEBAR — quiet, out of the way
+   ============================================ */
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: white;
+}
+
+.sidebar-logo-text h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.sidebar-logo-text p {
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  font-weight: 500;
+}
+
+.sidebar-nav {
+  padding: 12px;
+  flex: 1;
+}
+
+.sidebar-section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 12px 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  margin-bottom: 2px;
+}
+
+.nav-item:hover {
+  background: var(--gray-50);
+  color: var(--gray-800);
+}
+
+.nav-item.active,
+.nav-item.active.dashboard,
+.nav-item.active.investor,
+.nav-item.active.client {
+  background: var(--blue-light);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--gray-100);
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+.sidebar-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-100);
+}
+
+.sidebar-footer-info {
+  font-size: 0.72rem;
+  color: var(--gray-400);
+  text-align: center;
+}
+
+/* ============================================
+   PAGE HEADERS — friendly & clear
+   ============================================ */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2,
+.page-header h2.investor-title,
+.page-header h2.client-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+.page-header p {
+  color: var(--gray-500);
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+
+/* ============================================
+   CARDS — simple white boxes
+   ============================================ */
+.card,
+.card.investor-card,
+.card.client-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 24px;
+  backdrop-filter: none;
+  box-shadow: none;
+  transition: none;
+}
+
+.card:hover,
+.card.investor-card:hover,
+.card.client-card:hover {
+  box-shadow: none;
+  border-color: var(--gray-200);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title .icon { font-size: 1.1rem; }
+
+/* ============================================
+   STAT CARDS — clean boxes with a hint of color
+   ============================================ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: default;
+  transition: none;
+}
+
+.stat-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.stat-icon.investor { background: var(--purple-light); }
+.stat-icon.client { background: var(--teal-light); }
+.stat-icon.success { background: var(--green-light); }
+.stat-icon.warning { background: var(--orange-light); }
+
+.stat-info h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  line-height: 1.2;
+}
+
+.stat-info p {
+  font-size: 0.78rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+/* ============================================
+   EXCEL UPLOADER — simple drop area
+   ============================================ */
+.upload-zone,
+.upload-zone.client-upload {
+  border: 2px dashed var(--gray-300);
+  border-radius: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--gray-50);
+}
+
+.upload-zone::before { display: none; }
+
+.upload-zone:hover,
+.upload-zone.client-upload:hover {
+  border-color: var(--blue);
+  background: var(--blue-light);
+}
+
+.upload-zone.dragging,
+.upload-zone.client-upload.dragging {
+  border-color: var(--blue);
+  background: var(--blue-light);
+  transform: none;
+}
+
+.upload-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+
+.upload-text h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 4px;
+}
+
+.upload-text p {
+  font-size: 0.82rem;
+  color: var(--gray-500);
+}
+
+.upload-text .browse-link,
+.client-upload .browse-link {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.upload-file-input { display: none; }
+
+.uploaded-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--green-light);
+  border: 1px solid var(--green-soft);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.uploaded-file .file-icon { font-size: 1.3rem; }
+
+.uploaded-file .file-info h5 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.uploaded-file .file-info p {
+  font-size: 0.75rem;
+  color: var(--green);
+}
+
+.uploaded-file .remove-btn {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px;
+}
+
+.uploaded-file .remove-btn:hover { color: var(--red); }
+
+/* ============================================
+   CONTACTS TABLE — readable rows
+   ============================================ */
+.contacts-table-wrapper {
+  overflow-x: auto;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200);
+}
+
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.contacts-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.contacts-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-600);
+}
+
+.contacts-table tr:hover td {
+  background: var(--gray-50);
+}
+
+.contacts-table tr:last-child td { border-bottom: none; }
+
+.contact-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--gray-50);
+  border-radius: 99px;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.contact-count strong { color: var(--gray-800); }
+
+/* ============================================
+   MESSAGE COMPOSER
+   ============================================ */
+.composer-section { margin-top: 16px; }
+
+.template-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.template-btn {
+  padding: 7px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-600);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+
+.template-btn:hover {
+  border-color: var(--gray-300);
+  color: var(--gray-800);
+}
+
+.template-btn.active,
+.template-btn.active.client-btn {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+}
+
+.form-input,
+.form-input.client-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  color: var(--gray-800);
+  font-size: 0.9rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus,
+.form-input.client-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--gray-400);
+}
+
+textarea.form-input {
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.variable-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.variable-tag,
+.variable-tag.client-tag {
+  padding: 3px 10px;
+  background: var(--blue-light);
+  color: var(--blue);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: monospace;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+
+.variable-tag:hover,
+.variable-tag.client-tag:hover {
+  background: var(--blue-soft);
+}
+
+/* ============================================
+   BUTTONS — just buttons, nothing wild
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font);
+  transition: opacity 0.15s;
+}
+
+.btn::after { display: none; }
+
+.btn:hover { opacity: 0.9; }
+.btn:active { transform: scale(0.98); }
+
+.btn-investor {
+  background: var(--purple);
+  color: white;
+  box-shadow: none;
+}
+
+.btn-investor:hover { box-shadow: none; transform: none; }
+
+.btn-client {
+  background: var(--teal);
+  color: white;
+  box-shadow: none;
+}
+
+.btn-client:hover { box-shadow: none; transform: none; }
+
+.btn-whatsapp {
+  background: #25d366;
+  color: white;
+  box-shadow: none;
+}
+
+.btn-whatsapp:hover { box-shadow: none; transform: none; }
+
+.btn-outline {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  color: var(--gray-700);
+}
+
+.btn-outline:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-300);
+}
+
+.btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+.btn-lg { padding: 12px 24px; font-size: 0.95rem; }
+
+.btn-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   SMTP CONFIG
+   ============================================ */
+.smtp-config {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.smtp-config .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* ============================================
+   PROGRESS BAR
+   ============================================ */
+.progress-section { margin-top: 20px; }
+
+.progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: var(--gray-100);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+.progress-bar-fill::after { display: none; }
+.progress-bar-fill.investor { background: var(--purple); }
+.progress-bar-fill.client { background: var(--teal); }
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.progress-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-stats .sent { color: var(--green); }
+.progress-stats .failed { color: var(--red); }
+.progress-stats .pending { color: var(--gray-400); }
+
+.send-results {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.82rem;
+}
+
+.result-item:last-child { border-bottom: none; }
+
+.result-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.result-status.success { background: var(--green); }
+.result-status.failed { background: var(--red); }
+.result-status.pending { background: var(--gray-300); animation: pulse 1.5s infinite; }
+
+/* ============================================
+   COMPANY PROFILE
+   ============================================ */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.profile-grid .full-width { grid-column: 1 / -1; }
+
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--gray-600);
+}
+
+.attachment-item .att-icon { font-size: 1rem; }
+
+.attachment-item .remove-att {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.attachment-item .remove-att:hover { color: var(--red); }
+
+/* ============================================
+   TABS
+   ============================================ */
+.panel-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--gray-100);
+  padding: 4px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.panel-tab {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--gray-500);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+
+.panel-tab:hover { color: var(--gray-700); }
+
+.panel-tab.active {
+  background: var(--white);
+  color: var(--gray-800);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ============================================
+   WHATSAPP LINKS
+   ============================================ */
+.whatsapp-links {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.wa-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.wa-link-item:hover { background: var(--gray-50); }
+.wa-link-item:last-child { border-bottom: none; }
+
+.wa-link-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wa-link-info .wa-icon { font-size: 1.2rem; }
+.wa-link-info .wa-name { font-weight: 600; font-size: 0.9rem; }
+.wa-link-info .wa-phone { font-size: 0.78rem; color: var(--gray-400); }
+
+.wa-send-btn {
+  padding: 6px 14px;
+  background: #25d366;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.wa-send-btn:hover { opacity: 0.9; }
+
+/* ============================================
+   TOAST — small, quiet notifications
+   ============================================ */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 20px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  color: var(--gray-800);
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.25s ease;
+  min-width: 280px;
+}
+
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.warning { border-left: 3px solid var(--orange); }
+.toast.info { border-left: 3px solid var(--blue); }
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--gray-400);
+}
+
+.empty-state .empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.empty-state h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  margin-bottom: 4px;
+}
+
+.empty-state p { font-size: 0.85rem; }
+
+/* ============================================
+   GRID LAYOUTS
+   ============================================ */
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.panel-section { margin-bottom: 20px; }
+
+/* ============================================
+   TAGS
+   ============================================ */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.tag-investor { background: var(--purple-light); color: var(--purple); }
+.tag-client { background: var(--teal-light); color: var(--teal); }
+.tag-success { background: var(--green-light); color: var(--green); }
+
+.text-gradient-investor,
+.text-gradient-client {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+/* ============================================
+   MISC
+   ============================================ */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--gray-100);
+  margin: 20px 0;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ============================================
+   ANIMATIONS — subtle, only what's needed
+   ============================================ */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1024px) {
+  .sidebar { width: 64px; overflow: hidden; }
+  .sidebar-header { padding: 16px 14px; }
+  .sidebar-logo-text, .sidebar-section-label,
+  .nav-item span:not(.nav-icon), .nav-badge, .sidebar-footer { display: none; }
+  .nav-item { justify-content: center; padding: 10px; }
+  .main-content { margin-left: 64px; }
+  .two-col-grid, .smtp-config, .profile-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .main-content { padding: 20px 16px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .btn-group { flex-direction: column; }
+  .btn-group .btn { width: 100%; justify-content: center; }
+}
+
+/* ============================================
+   SCROLLBAR — barely there
+   ============================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gray-300); }

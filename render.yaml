@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: origenix-outreach-api
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+    healthCheckPath: /api/health
