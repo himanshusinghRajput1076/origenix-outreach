@@ -142,6 +142,8 @@ Best,
   const [jobId, setJobId] = useState(null)
   const [jobStatus, setJobStatus] = useState(null)
   const [sendSpeed, setSendSpeed] = useState('gmail')
+  const [customConcurrency, setCustomConcurrency] = useState(5)
+  const [customDelay, setCustomDelay] = useState(0)
   const [previewIndex, setPreviewIndex] = useState(0)
 
   const selectTemplate = (name) => {
@@ -258,6 +260,9 @@ Best,
     } else if (campaignSpeed === 'turbo') {
       concurrency = 5
       delayBetweenMs = 0
+    } else if (campaignSpeed === 'custom') {
+      concurrency = currentCampaignState.customConcurrency || 5
+      delayBetweenMs = currentCampaignState.customDelay !== undefined ? currentCampaignState.customDelay : 0
     }
 
     // Get the next batch of contacts
@@ -347,6 +352,8 @@ Best,
       setProgress(parsed.progress)
       setSendResults(parsed.results)
       setSendSpeed(parsed.sendSpeed || 'gmail')
+      if (parsed.customConcurrency) setCustomConcurrency(parsed.customConcurrency)
+      if (parsed.customDelay !== undefined) setCustomDelay(parsed.customDelay)
       
       if (parsed.status === 'running') {
         setSending(true)
@@ -393,6 +400,9 @@ Best,
       const parsed = JSON.parse(savedCampaign)
       parsed.status = 'running'
       parsed.smtpConfig = smtpConfig // Update credentials if they changed
+      parsed.sendSpeed = sendSpeed // Update speed selection
+      parsed.customConcurrency = customConcurrency
+      parsed.customDelay = customDelay
       
       localStorage.setItem('active_outreach_campaign', JSON.stringify(parsed))
       setSending(true)
@@ -485,6 +495,8 @@ Best,
       body: filledBody.replace(/\n/g, '<br>'),
       smtpConfig,
       sendSpeed,
+      customConcurrency,
+      customDelay,
       attachments: base64Attachments,
       status: 'running'
     }
@@ -628,9 +640,41 @@ Best,
               <option value="gmail">Safe Mode (Gmail) — 1 email / 4s</option>
               <option value="standard">Standard Mode — ~2 emails / second</option>
               <option value="turbo">Turbo Mode (SMTP Relays) — High-speed parallel</option>
+              <option value="custom">Custom Speed Settings...</option>
             </select>
           </div>
         </div>
+
+        {sendSpeed === 'custom' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '4px', marginBottom: '16px', padding: '16px', background: 'var(--gray-50)', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px', display: 'block' }}>Parallel Connections (1-20)</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                className="form-input"
+                value={customConcurrency}
+                onChange={e => setCustomConcurrency(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                disabled={sending}
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-600)', marginBottom: '6px', display: 'block' }}>Delay between sends (ms)</label>
+              <input
+                type="number"
+                min="0"
+                max="10000"
+                className="form-input"
+                value={customDelay}
+                onChange={e => setCustomDelay(Math.max(0, parseInt(e.target.value) || 0))}
+                disabled={sending}
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="btn-group">
           <button className={`btn ${isClient ? 'btn-client' : 'btn-investor'} btn-lg`}
