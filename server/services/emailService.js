@@ -108,6 +108,7 @@ export async function sendBulkEmails({
   smtpHost = "smtp.gmail.com",
   smtpPort = 587,
   attachmentPaths = [],
+  attachments = [],
   concurrency = 5,
   delayBetweenMs = 100,
   shouldStop,
@@ -147,7 +148,21 @@ export async function sendBulkEmails({
   }
 
   // Pre-build attachments list (shared across all mails)
-  const attachments = attachmentPaths.map((filePath) => ({ path: filePath }));
+  const nodemailerAttachments = [];
+  for (const filePath of attachmentPaths) {
+    nodemailerAttachments.push({ path: filePath });
+  }
+  for (const att of attachments) {
+    if (att && att.content) {
+      nodemailerAttachments.push({
+        filename: att.filename,
+        content: Buffer.from(att.content, "base64"),
+        contentType: att.contentType,
+      });
+    } else if (att && att.path) {
+      nodemailerAttachments.push({ path: att.path });
+    }
+  }
 
   const results = new Array(contacts.length);
   let doneCount = 0;
@@ -178,7 +193,7 @@ export async function sendBulkEmails({
         to:          recipientEmail,
         subject:     personalSubject,
         html:        personalBody,
-        attachments,
+        attachments: nodemailerAttachments,
       });
 
       doneCount++;

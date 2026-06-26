@@ -271,8 +271,19 @@ app.post("/api/send-emails", async (req, res) => {
       return res.status(400).json({ error: "Sender email and password are required" });
     }
 
+    // Separate file-based and base64-based attachments
+    const fileAttachments = [];
+    const base64Attachments = [];
+    for (const att of attachments) {
+      if (typeof att === "string") {
+        fileAttachments.push(att);
+      } else if (att && typeof att === "object" && att.content) {
+        base64Attachments.push(att);
+      }
+    }
+
     // Resolve attachment filenames to absolute paths
-    const attachmentPaths = attachments.map((name) =>
+    const attachmentPaths = fileAttachments.map((name) =>
       path.join(UPLOADS_DIR, name)
     );
 
@@ -293,6 +304,7 @@ app.post("/api/send-emails", async (req, res) => {
       smtpPort: smtpPort ? Number(smtpPort) : undefined,
       concurrency: concurrency ? Number(concurrency) : 5, // parallel sends
       attachmentPaths,
+      attachments: base64Attachments,
     });
 
     const sent   = results.filter((r) => r.status === "sent").length;

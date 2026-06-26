@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import API_BASE from '../config'
+import { getAttachment } from '../utils/db'
 
 export default function MessageComposer({ contacts, companyProfile, smtpConfig, addToast, variant = 'investor' }) {
   const isClient = variant === 'client'
@@ -205,129 +206,199 @@ Best,
     ? ['{your_company}', '{your_name}', '{service_1}', '{service_2}', '{service_3}']
     : ['{your_company}', '{your_name}', '{funding_amount}', '{highlight_1}', '{highlight_2}']
 
-  // Poll job status
-  const pollJobStatus = useCallback((id) => {
-    if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = setInterval(async () => {
+  // Helper to fetch all attachments from IndexedDB
+  const loadAttachmentsForSend = async (attachmentNames) => {
+    const result = []
+    for (const name of attachmentNames) {
       try {
-        const res = await fetch(`${API_BASE}/job-status/${id}`)
-        const data = await res.json()
-        setProgress({ sent: data.sent, failed: data.failed, total: data.total })
-        setSendResults(data.results)
-        setJobStatus(data.status)
-
-        if (data.status === 'running') {
-          setSending(true)
-        } else {
-          setSending(false)
+        const att = await getAttachment(name)
+        if (att) {
+          result.push({
+            filename: att.name,
+            content: att.base64,
+            contentType: att.type
+          })
         }
-
-        if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed') {
-          clearInterval(pollRef.current)
-          pollRef.current = null
-          localStorage.removeItem('active_outreach_job_id')
-          if (data.status === 'completed') {
-            addToast(`All done — ${data.sent.toLocaleString()} sent, ${data.failed.toLocaleString()} failed.`, data.sent > 0 ? 'success' : 'error')
-          } else if (data.status === 'cancelled') {
-            addToast('Campaign cancelled.', 'info')
-          } else {
-            addToast('Job failed: ' + (data.error || 'Unknown error'), 'error')
-          }
-        } else if (data.status === 'paused' || data.status === 'interrupted') {
-          clearInterval(pollRef.current)
-          pollRef.current = null
-          if (data.status === 'paused') {
-            addToast('Campaign paused.', 'info')
-          } else {
-            addToast('Campaign interrupted. You can resume it.', 'warning')
-          }
-        }
-      } catch {
-        // Keep polling even if one request fails
+      } catch (err) {
+        console.error(`Failed to load attachment ${name} from IndexedDB:`, err)
       }
-    }, 2000)
-  }, [addToast])
-
-  // Recover active job from localStorage on mount
-  useEffect(() => {
-    const savedJobId = localStorage.getItem('active_outreach_job_id')
-    if (savedJobId) {
-      setJobId(savedJobId)
-      setSending(true)
-      pollJobStatus(savedJobId)
     }
-  }, [pollJobStatus])
-
-  const handlePauseCampaign = async () => {
-    if (!jobId) return
-    try {
-      const res = await fetch(`${API_BASE}/pause-job/${jobId}`, { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        addToast('Pausing campaign...', 'info')
-        if (pollRef.current) {
-          const statusRes = await fetch(`${API_BASE}/job-status/${jobId}`)
-          const statusData = await statusRes.json()
-          setJobStatus(statusData.status)
-          setSending(false)
-          clearInterval(pollRef.current)
-          pollRef.current = null
-        }
-      } else {
-        addToast('Failed to pause: ' + (data.error || 'Unknown error'), 'error')
-      }
-    } catch {
-      addToast('Can\'t reach the server.', 'error')
-    }
+    return result
   }
 
-  const handleCancelCampaign = async () => {
-    if (!jobId) return
-    if (!window.confirm('Are you sure you want to cancel this campaign? Any unsent emails will not be sent.')) return
-    try {
-      const res = await fetch(`${API_BASE}/cancel-job/${jobId}`, { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        addToast('Cancelling campaign...', 'info')
-        localStorage.removeItem('active_outreach_job_id')
-        setJobStatus('cancelled')
-        setSending(false)
-        if (pollRef.current) {
-          clearInterval(pollRef.current)
-          pollRef.current = null
-        }
-      } else {
-        addToast('Failed to cancel: ' + (data.error || 'Unknown error'), 'error')
-      }
-    } catch {
-      addToast('Can\'t reach the server.', 'error')
+  // Client-side campaign execution loop
+  const runCampaignLoop = useCallback(async (currentCampaignState) => {
+    let {
+      contacts: campaignContacts,
+      currentIndex,
+      results,
+      progress: currentProgress,
+      subject: campaignSubject,
+      body: campaignBody,
+      smtpConfig: campaignSmtp,
+      sendSpeed: campaignSpeed,
+      attachments: campaignAttachments
+    } = currentCampaignState
+
+    if (currentIndex >= campaignContacts.length) {
+      // Completed!
+      setSending(false)
+      setJobStatus('completed')
+      localStorage.removeItem('active_outreach_campaign')
+      addToast(`All done — ${currentProgress.sent.toLocaleString()} sent, ${currentProgress.failed.toLocaleString()} failed.`, currentProgress.sent > 0 ? 'success' : 'error')
+      return
     }
+
+    // Determine concurrency and delay based on speed setting
+    let concurrency = 1
+    let delayBetweenMs = 4000
+    if (campaignSpeed === 'standard') {
+      concurrency = 3
+      delayBetweenMs = 1500
+    } else if (campaignSpeed === 'turbo') {
+      concurrency = 5
+      delayBetweenMs = 0
+    }
+
+    // Get the next batch of contacts
+    const batch = campaignContacts.slice(currentIndex, currentIndex + concurrency)
+    
+    // Prepare API request payload
+    const payload = {
+      contacts: batch,
+      subject: campaignSubject,
+      htmlBody: campaignBody,
+      smtpHost: campaignSmtp.host,
+      smtpPort: parseInt(campaignSmtp.port),
+      fromEmail: campaignSmtp.email,
+      fromPassword: campaignSmtp.password,
+      attachments: campaignAttachments,
+      concurrency,
+      delayBetweenMs
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/send-emails`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+
+      if (data.success && data.results) {
+        const nextResults = [...results, ...data.results]
+        const nextSent = nextResults.filter(r => r.status === 'sent').length
+        const nextFailed = nextResults.filter(r => r.status === 'failed').length
+        const nextIndex = currentIndex + batch.length
+        const nextProgress = { sent: nextSent, failed: nextFailed, total: campaignContacts.length }
+
+        setSendResults(nextResults)
+        setProgress(nextProgress)
+
+        const nextState = {
+          ...currentCampaignState,
+          currentIndex: nextIndex,
+          results: nextResults,
+          progress: nextProgress
+        }
+
+        // Save progress to localStorage
+        localStorage.setItem('active_outreach_campaign', JSON.stringify(nextState))
+
+        // Schedule next chunk if still running
+        pollRef.current = setTimeout(() => {
+          const savedCampaign = localStorage.getItem('active_outreach_campaign')
+          if (savedCampaign) {
+            const parsed = JSON.parse(savedCampaign)
+            if (parsed.status === 'running') {
+              runCampaignLoop(parsed)
+            }
+          }
+        }, delayBetweenMs)
+      } else {
+        // Severe error (e.g. SMTP invalid credentials or server error)
+        addToast(data.error || 'SMTP Connection or server error occurred during sending.', 'error')
+        
+        // Pause the campaign
+        const nextState = { ...currentCampaignState, status: 'paused' }
+        localStorage.setItem('active_outreach_campaign', JSON.stringify(nextState))
+        setSending(false)
+        setJobStatus('paused')
+      }
+    } catch (err) {
+      console.error(err)
+      addToast('Can\'t reach the backend server. Pausing campaign.', 'error')
+      
+      // Pause the campaign
+      const nextState = { ...currentCampaignState, status: 'paused' }
+      localStorage.setItem('active_outreach_campaign', JSON.stringify(nextState))
+      setSending(false)
+      setJobStatus('paused')
+    }
+  }, [addToast])
+
+  // Recover active campaign from localStorage on mount
+  useEffect(() => {
+    const savedCampaign = localStorage.getItem('active_outreach_campaign')
+    if (savedCampaign) {
+      const parsed = JSON.parse(savedCampaign)
+      setJobId('local_campaign')
+      setJobStatus(parsed.status)
+      setProgress(parsed.progress)
+      setSendResults(parsed.results)
+      setSendSpeed(parsed.sendSpeed || 'gmail')
+      
+      if (parsed.status === 'running') {
+        setSending(true)
+        runCampaignLoop(parsed)
+      }
+    }
+  }, [runCampaignLoop])
+
+  const handlePauseCampaign = () => {
+    const savedCampaign = localStorage.getItem('active_outreach_campaign')
+    if (savedCampaign) {
+      const parsed = JSON.parse(savedCampaign)
+      parsed.status = 'paused'
+      localStorage.setItem('active_outreach_campaign', JSON.stringify(parsed))
+    }
+    if (pollRef.current) {
+      clearTimeout(pollRef.current)
+      pollRef.current = null
+    }
+    setSending(false)
+    setJobStatus('paused')
+    addToast('Campaign paused.', 'info')
+  }
+
+  const handleCancelCampaign = () => {
+    if (!window.confirm('Are you sure you want to cancel this campaign? Any unsent emails will not be sent.')) return
+    if (pollRef.current) {
+      clearTimeout(pollRef.current)
+      pollRef.current = null
+    }
+    localStorage.removeItem('active_outreach_campaign')
+    setSending(false)
+    setJobStatus('cancelled')
+    addToast('Campaign cancelled.', 'info')
   }
 
   const handleResumeCampaign = async () => {
-    if (!jobId) return
     if (!smtpConfig.email || !smtpConfig.password) {
       addToast('Set up your email credentials in Company & Settings first.', 'warning')
       return
     }
-    try {
-      const res = await fetch(`${API_BASE}/resume-job/${jobId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromPassword: smtpConfig.password })
-      })
-      const data = await res.json()
-      if (data.success) {
-        addToast('Resuming campaign...', 'info')
-        setJobStatus('running')
-        setSending(true)
-        localStorage.setItem('active_outreach_job_id', jobId)
-        pollJobStatus(jobId)
-      } else {
-        addToast('Failed to resume: ' + (data.error || 'Unknown error'), 'error')
-      }
-    } catch {
-      addToast('Can\'t reach the server.', 'error')
+    const savedCampaign = localStorage.getItem('active_outreach_campaign')
+    if (savedCampaign) {
+      const parsed = JSON.parse(savedCampaign)
+      parsed.status = 'running'
+      parsed.smtpConfig = smtpConfig // Update credentials if they changed
+      
+      localStorage.setItem('active_outreach_campaign', JSON.stringify(parsed))
+      setSending(true)
+      setJobStatus('running')
+      addToast('Resuming campaign...', 'info')
+      runCampaignLoop(parsed)
     }
   }
 
@@ -394,73 +465,34 @@ Best,
     setSendResults([])
     setJobStatus('running')
     setProgress({ sent: 0, failed: 0, total: emailContacts.length })
+    addToast('Preparing campaign...', 'info')
 
-    let concurrency = 5
-    let delayBetweenMs = 1000
-
-    if (sendSpeed === 'gmail') {
-      concurrency = 1
-      delayBetweenMs = 4000
-    } else if (sendSpeed === 'standard') {
-      concurrency = 3
-      delayBetweenMs = 1500
-    } else if (sendSpeed === 'turbo') {
-      concurrency = 5
-      delayBetweenMs = 0
-    }
+    // Load base64 attachment buffers from IndexedDB
+    const base64Attachments = await loadAttachmentsForSend(companyProfile.attachments || [])
 
     const filledSubject = fillCompanyVars(subject)
     const filledBody = fillCompanyVars(body)
-    const payload = {
-      contacts: emailContacts,
+    
+    // Add unique internal index to identify contacts in callback
+    const contactsWithId = emailContacts.map((c, idx) => ({ ...c, __idx: idx }))
+
+    const campaignState = {
+      contacts: contactsWithId,
+      currentIndex: 0,
+      results: [],
+      progress: { sent: 0, failed: 0, total: emailContacts.length },
       subject: filledSubject,
-      htmlBody: filledBody.replace(/\n/g, '<br>'),
-      smtpHost: smtpConfig.host,
-      smtpPort: parseInt(smtpConfig.port),
-      fromEmail: smtpConfig.email,
-      fromPassword: smtpConfig.password,
-      attachments: companyProfile.attachments || [],
-      concurrency,
-      delayBetweenMs
+      body: filledBody.replace(/\n/g, '<br>'),
+      smtpConfig,
+      sendSpeed,
+      attachments: base64Attachments,
+      status: 'running'
     }
 
-    // Use batch endpoint for large lists (200+), regular for small
-    const useBatch = emailContacts.length > 200
-    const endpoint = useBatch ? `${API_BASE}/send-emails-batch` : `${API_BASE}/send-emails`
+    setJobId('local_campaign')
+    localStorage.setItem('active_outreach_campaign', JSON.stringify(campaignState))
 
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      const data = await res.json()
-
-      if (useBatch && data.success) {
-        // Batch mode — poll for progress
-        setJobId(data.jobId)
-        localStorage.setItem('active_outreach_job_id', data.jobId)
-        addToast(`Sending ${emailContacts.length.toLocaleString()} emails in background...`, 'info')
-        pollJobStatus(data.jobId)
-      } else if (data.success) {
-        // Direct mode — results are immediate
-        setSendResults(data.results)
-        const sent = data.results.filter(r => r.status === 'sent').length
-        const failed = data.results.filter(r => r.status === 'failed').length
-        setProgress({ sent, failed, total: emailContacts.length })
-        addToast(`Done — ${sent} sent, ${failed} failed.`, sent > 0 ? 'success' : 'error')
-        setSending(false)
-        setJobStatus('completed')
-      } else {
-        addToast('Something went wrong: ' + (data.error || 'Unknown error'), 'error')
-        setSending(false)
-        setJobStatus('failed')
-      }
-    } catch (err) {
-      addToast('Can\'t reach the server. Is the backend running?', 'error')
-      setSending(false)
-      setJobStatus('failed')
-    }
+    runCampaignLoop(campaignState)
   }
 
   const handleWhatsApp = async () => {

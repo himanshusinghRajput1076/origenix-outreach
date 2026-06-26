@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
+import { saveAttachment, removeAttachmentFromDB } from '../utils/db'
 
 export default function CompanyProfile({ profile, setProfile, smtpConfig, setSmtpConfig, addToast }) {
   const fileRef = useRef(null)
@@ -38,28 +39,29 @@ export default function CompanyProfile({ profile, setProfile, smtpConfig, setSmt
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch(`${API_BASE}/upload-attachment`, {
-        method: 'POST',
-        body: formData
-      })
-      const data = await res.json()
-      if (data.success) {
-        setProfile(prev => ({
-          ...prev,
-          attachments: [...prev.attachments, data.filename]
-        }))
-        addToast(`Attached: ${file.name}`, 'success')
-      }
+      // Save file to IndexedDB locally
+      await saveAttachment(file.name, file)
+      
+      setProfile(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, file.name]
+      }))
+      addToast(`Attached: ${file.name}`, 'success')
     } catch (err) {
-      addToast('Couldn\'t upload — is the server running?', 'error')
+      console.error(err)
+      addToast('Couldn\'t save attachment to browser database.', 'error')
     }
     setUploading(false)
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const removeAttachment = (index) => {
+  const removeAttachment = async (index) => {
+    const filename = profile.attachments[index]
+    try {
+      await removeAttachmentFromDB(filename)
+    } catch (err) {
+      console.error('Error removing from DB:', err)
+    }
     setProfile(prev => ({
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index)
