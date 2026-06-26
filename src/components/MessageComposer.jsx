@@ -1,9 +1,17 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import API_BASE from '../config'
 
 export default function MessageComposer({ contacts, companyProfile, smtpConfig, addToast, variant = 'investor' }) {
   const isClient = variant === 'client'
   const pollRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+      }
+    }
+  }, [])
 
   const investorTemplates = {
     'Funding Request': {
@@ -131,6 +139,9 @@ Best,
   const [showWhatsApp, setShowWhatsApp] = useState(false)
   const [waLinks, setWaLinks] = useState([])
   const [jobId, setJobId] = useState(null)
+  const [jobStatus, setJobStatus] = useState(null)
+  const [sendSpeed, setSendSpeed] = useState('gmail')
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const selectTemplate = (name) => {
     setActiveTemplate(name)
@@ -139,20 +150,50 @@ Best,
   }
 
   const fillCompanyVars = (text) => {
-    return text
-      .replace(/\{your_company\}/g, companyProfile.companyName || 'Your Company')
-      .replace(/\{your_name\}/g, companyProfile.founderName || 'Your Name')
-      .replace(/\{company_description\}/g, companyProfile.description || '')
-      .replace(/\{your_website\}/g, companyProfile.website || '')
-      .replace(/\{your_email\}/g, companyProfile.email || '')
-      .replace(/\{funding_amount\}/g, companyProfile.fundingAmount || '[amount]')
-      .replace(/\{funding_purpose\}/g, companyProfile.fundingPurpose || '[purpose]')
-      .replace(/\{highlight_1\}/g, companyProfile.highlights?.[0] || '')
-      .replace(/\{highlight_2\}/g, companyProfile.highlights?.[1] || '')
-      .replace(/\{highlight_3\}/g, companyProfile.highlights?.[2] || '')
-      .replace(/\{service_1\}/g, companyProfile.services?.[0] || '')
-      .replace(/\{service_2\}/g, companyProfile.services?.[1] || '')
-      .replace(/\{service_3\}/g, companyProfile.services?.[2] || '')
+    const companyKeys = {
+      companyname: companyProfile.companyName || 'Your Company',
+      yourcompany: companyProfile.companyName || 'Your Company',
+      foundername: companyProfile.founderName || 'Your Name',
+      yourname: companyProfile.founderName || 'Your Name',
+      description: companyProfile.description || '',
+      companydescription: companyProfile.description || '',
+      website: companyProfile.website || '',
+      yourwebsite: companyProfile.website || '',
+      email: companyProfile.email || '',
+      youremail: companyProfile.email || '',
+      fundingamount: companyProfile.fundingAmount || '[amount]',
+      fundingpurpose: companyProfile.fundingPurpose || '[purpose]',
+      highlight1: companyProfile.highlights?.[0] || '',
+      highlight2: companyProfile.highlights?.[1] || '',
+      highlight3: companyProfile.highlights?.[2] || '',
+      service1: companyProfile.services?.[0] || '',
+      service2: companyProfile.services?.[1] || '',
+      service3: companyProfile.services?.[2] || ''
+    }
+
+    return text.replace(/\{([^{}]+)\}/g, (match, key) => {
+      const normalizedKey = key.trim().toLowerCase().replace(/[\s_-]/g, "")
+      if (companyKeys[normalizedKey] !== undefined) {
+        return companyKeys[normalizedKey]
+      }
+      return match // leave contact variables untouched
+    })
+  }
+
+  const fillContactVars = (text, contact) => {
+    if (!contact) return text
+    return text.replace(/\{([^{}]+)\}/g, (match, key) => {
+      const normalizedKey = key.trim().toLowerCase().replace(/[\s_-]/g, "")
+      for (const contactKey of Object.keys(contact)) {
+        if (contactKey.toLowerCase().replace(/[\s_-]/g, "") === normalizedKey) {
+          return contact[contactKey] ?? ""
+        }
+      }
+      if (/^[a-zA-Z0-9\s_-]+$/.test(key)) {
+        return ""
+      }
+      return match
+    })
   }
 
   const insertVariable = (variable) => {
@@ -172,17 +213,33 @@ Best,
         const res = await fetch(`${API_BASE}/job-status/${id}`)
         const data = await res.json()
         setProgress({ sent: data.sent, failed: data.failed, total: data.total })
-        setSendResults(data.results.slice(-100)) // Show last 100 results
+        setSendResults(data.results)
+        setJobStatus(data.status)
 
-        if (data.status === 'completed' || data.status === 'failed') {
+        if (data.status === 'running') {
+          setSending(true)
+        } else {
+          setSending(false)
+        }
+
+        if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed') {
           clearInterval(pollRef.current)
           pollRef.current = null
-          setSending(false)
-          setJobId(null)
+          localStorage.removeItem('active_outreach_job_id')
           if (data.status === 'completed') {
             addToast(`All done — ${data.sent.toLocaleString()} sent, ${data.failed.toLocaleString()} failed.`, data.sent > 0 ? 'success' : 'error')
+          } else if (data.status === 'cancelled') {
+            addToast('Campaign cancelled.', 'info')
           } else {
             addToast('Job failed: ' + (data.error || 'Unknown error'), 'error')
+          }
+        } else if (data.status === 'paused' || data.status === 'interrupted') {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+          if (data.status === 'paused') {
+            addToast('Campaign paused.', 'info')
+          } else {
+            addToast('Campaign interrupted. You can resume it.', 'warning')
           }
         }
       } catch {
@@ -190,6 +247,137 @@ Best,
       }
     }, 2000)
   }, [addToast])
+
+  // Recover active job from localStorage on mount
+  useEffect(() => {
+    const savedJobId = localStorage.getItem('active_outreach_job_id')
+    if (savedJobId) {
+      setJobId(savedJobId)
+      setSending(true)
+      pollJobStatus(savedJobId)
+    }
+  }, [pollJobStatus])
+
+  const handlePauseCampaign = async () => {
+    if (!jobId) return
+    try {
+      const res = await fetch(`${API_BASE}/pause-job/${jobId}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        addToast('Pausing campaign...', 'info')
+        if (pollRef.current) {
+          const statusRes = await fetch(`${API_BASE}/job-status/${jobId}`)
+          const statusData = await statusRes.json()
+          setJobStatus(statusData.status)
+          setSending(false)
+          clearInterval(pollRef.current)
+          pollRef.current = null
+        }
+      } else {
+        addToast('Failed to pause: ' + (data.error || 'Unknown error'), 'error')
+      }
+    } catch {
+      addToast('Can\'t reach the server.', 'error')
+    }
+  }
+
+  const handleCancelCampaign = async () => {
+    if (!jobId) return
+    if (!window.confirm('Are you sure you want to cancel this campaign? Any unsent emails will not be sent.')) return
+    try {
+      const res = await fetch(`${API_BASE}/cancel-job/${jobId}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        addToast('Cancelling campaign...', 'info')
+        localStorage.removeItem('active_outreach_job_id')
+        setJobStatus('cancelled')
+        setSending(false)
+        if (pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+        }
+      } else {
+        addToast('Failed to cancel: ' + (data.error || 'Unknown error'), 'error')
+      }
+    } catch {
+      addToast('Can\'t reach the server.', 'error')
+    }
+  }
+
+  const handleResumeCampaign = async () => {
+    if (!jobId) return
+    if (!smtpConfig.email || !smtpConfig.password) {
+      addToast('Set up your email credentials in Company & Settings first.', 'warning')
+      return
+    }
+    try {
+      const res = await fetch(`${API_BASE}/resume-job/${jobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromPassword: smtpConfig.password })
+      })
+      const data = await res.json()
+      if (data.success) {
+        addToast('Resuming campaign...', 'info')
+        setJobStatus('running')
+        setSending(true)
+        localStorage.setItem('active_outreach_job_id', jobId)
+        pollJobStatus(jobId)
+      } else {
+        addToast('Failed to resume: ' + (data.error || 'Unknown error'), 'error')
+      }
+    } catch {
+      addToast('Can\'t reach the server.', 'error')
+    }
+  }
+
+  const downloadFailuresCSV = () => {
+    const failedResults = sendResults.filter(r => r.status === 'failed')
+    if (failedResults.length === 0) return
+
+    const errorMap = {}
+    failedResults.forEach(r => {
+      if (r.email) {
+        errorMap[r.email.toLowerCase().trim()] = r.error || 'Unknown error'
+      }
+    })
+
+    const failedContacts = contacts.filter(c => c.email && errorMap[c.email.toLowerCase().trim()] !== undefined)
+
+    let csvContent = ""
+    if (failedContacts.length > 0) {
+      const headers = [...Object.keys(failedContacts[0]), "Error Reason"]
+      let csvRows = [headers.map(h => `"${h.replace(/'/g, "''").replace(/"/g, '""')}"`).join(",")]
+      failedContacts.forEach(c => {
+        const emailKey = c.email.toLowerCase().trim()
+        const errorReason = errorMap[emailKey] || ''
+        const row = headers.map(h => {
+          if (h === "Error Reason") {
+            return `"${errorReason.replace(/"/g, '""')}"`
+          }
+          const val = c[h] ?? ''
+          return `"${String(val).replace(/"/g, '""')}"`
+        })
+        csvRows.push(row.join(","))
+      })
+      csvContent = csvRows.join("\n")
+    } else {
+      let csvRows = [["Email", "Error Reason"].join(",")]
+      failedResults.forEach(r => {
+        csvRows.push(`"${(r.email || '').replace(/"/g, '""')}","${(r.error || 'Unknown error').replace(/"/g, '""')}"`)
+      })
+      csvContent = csvRows.join("\n")
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `failed_contacts_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const handleSendEmails = async () => {
     if (!smtpConfig.email || !smtpConfig.password) {
@@ -204,7 +392,22 @@ Best,
 
     setSending(true)
     setSendResults([])
+    setJobStatus('running')
     setProgress({ sent: 0, failed: 0, total: emailContacts.length })
+
+    let concurrency = 5
+    let delayBetweenMs = 1000
+
+    if (sendSpeed === 'gmail') {
+      concurrency = 1
+      delayBetweenMs = 4000
+    } else if (sendSpeed === 'standard') {
+      concurrency = 3
+      delayBetweenMs = 1500
+    } else if (sendSpeed === 'turbo') {
+      concurrency = 5
+      delayBetweenMs = 0
+    }
 
     const filledSubject = fillCompanyVars(subject)
     const filledBody = fillCompanyVars(body)
@@ -216,11 +419,13 @@ Best,
       smtpPort: parseInt(smtpConfig.port),
       fromEmail: smtpConfig.email,
       fromPassword: smtpConfig.password,
-      attachments: companyProfile.attachments || []
+      attachments: companyProfile.attachments || [],
+      concurrency,
+      delayBetweenMs
     }
 
-    // Use batch endpoint for large lists (50+), regular for small
-    const useBatch = emailContacts.length > 50
+    // Use batch endpoint for large lists (200+), regular for small
+    const useBatch = emailContacts.length > 200
     const endpoint = useBatch ? `${API_BASE}/send-emails-batch` : `${API_BASE}/send-emails`
 
     try {
@@ -234,6 +439,7 @@ Best,
       if (useBatch && data.success) {
         // Batch mode — poll for progress
         setJobId(data.jobId)
+        localStorage.setItem('active_outreach_job_id', data.jobId)
         addToast(`Sending ${emailContacts.length.toLocaleString()} emails in background...`, 'info')
         pollJobStatus(data.jobId)
       } else if (data.success) {
@@ -244,13 +450,16 @@ Best,
         setProgress({ sent, failed, total: emailContacts.length })
         addToast(`Done — ${sent} sent, ${failed} failed.`, sent > 0 ? 'success' : 'error')
         setSending(false)
+        setJobStatus('completed')
       } else {
         addToast('Something went wrong: ' + (data.error || 'Unknown error'), 'error')
         setSending(false)
+        setJobStatus('failed')
       }
     } catch (err) {
       addToast('Can\'t reach the server. Is the backend running?', 'error')
       setSending(false)
+      setJobStatus('failed')
     }
   }
 
@@ -287,133 +496,304 @@ Best,
 
   const progressPercent = progress.total > 0 ? ((progress.sent + progress.failed) / progress.total) * 100 : 0
 
+  const emailContacts = contacts.filter(c => c.email)
+  const currentPreviewContact = emailContacts[previewIndex] || null
+
+  const previewSubject = currentPreviewContact
+    ? fillContactVars(fillCompanyVars(subject), currentPreviewContact)
+    : fillCompanyVars(subject)
+
+  const previewBody = currentPreviewContact
+    ? fillContactVars(fillCompanyVars(body), currentPreviewContact)
+    : fillCompanyVars(body)
+
+  const handlePrevPreview = () => {
+    if (emailContacts.length === 0) return
+    setPreviewIndex(prev => (prev > 0 ? prev - 1 : emailContacts.length - 1))
+  }
+
+  const handleNextPreview = () => {
+    if (emailContacts.length === 0) return
+    setPreviewIndex(prev => (prev < emailContacts.length - 1 ? prev + 1 : 0))
+  }
+
   return (
-    <div className="composer-section">
-      <div className="card-header">
-        <h3 className="card-title">Write your message</h3>
-      </div>
+    <div style={emailContacts.length > 0 ? { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' } : {}}>
+      {/* Left Pane: Composer Form */}
+      <div className="composer-section" style={{ background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: '12px', padding: '24px' }}>
+        <div className="card-header" style={{ borderBottom: '1px solid var(--gray-100)', paddingBottom: '12px', marginBottom: '16px' }}>
+          <h3 className="card-title">✍️ Compose outreach message</h3>
+        </div>
 
-      <p style={{ color: 'var(--gray-500)', fontSize: '0.85rem', marginBottom: '16px' }}>
-        Pick a template or write your own. Tags get replaced with real data for each person.
-      </p>
+        <p style={{ color: 'var(--gray-500)', fontSize: '0.85rem', marginBottom: '16px' }}>
+          Pick a template or write your own. Tags get replaced with real data for each person.
+        </p>
 
-      <div className="template-selector">
-        {templateNames.map(name => (
-          <button key={name}
-            className={`template-btn ${activeTemplate === name ? (isClient ? 'active client-btn' : 'active') : ''}`}
-            onClick={() => selectTemplate(name)}>
-            {name}
+        <div className="template-selector">
+          {templateNames.map(name => (
+            <button key={name}
+              className={`template-btn ${activeTemplate === name ? (isClient ? 'active client-btn' : 'active') : ''}`}
+              onClick={() => selectTemplate(name)}>
+              {name}
+            </button>
+          ))}
+        </div>
+
+        <div className="form-group">
+          <label>Subject line</label>
+          <input type="text" className="form-input" value={subject}
+            onChange={e => setSubject(e.target.value)} placeholder="Email subject..." />
+        </div>
+
+        <div className="form-group">
+          <label>Message</label>
+          <textarea className="form-input" value={body}
+            onChange={e => setBody(e.target.value)} placeholder="Write your message here..." style={{ minHeight: '180px' }} />
+          <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '8px', marginBottom: '4px' }}>
+            <strong>From their Excel data:</strong>
+          </p>
+          <div className="variable-tags">
+            {contactVars.map(v => (
+              <button key={v} className="variable-tag" onClick={() => insertVariable(v)}>{v}</button>
+            ))}
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '8px', marginBottom: '4px' }}>
+            <strong>From your company profile:</strong>
+          </p>
+          <div className="variable-tags">
+            {companyVars.map(v => (
+              <button key={v} className="variable-tag" onClick={() => insertVariable(v)}>{v}</button>
+            ))}
+          </div>
+        </div>
+
+        {smtpConfig.host === 'smtp.gmail.com' && emailContacts.length > 500 && (
+          <div style={{
+            background: 'var(--orange-light)',
+            borderLeft: '4px solid var(--orange)',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            color: 'var(--gray-700)',
+            marginTop: '16px',
+            marginBottom: '16px',
+            lineHeight: '1.4'
+          }}>
+            <strong>⚠️ Gmail Sending Limit Warning:</strong> You are trying to send to {emailContacts.length.toLocaleString()} emails. Free Gmail accounts have a strict limit of <strong>500 emails per 24 hours</strong> (Workspace limits are 2000). Exceeding this can trigger Google account suspensions. Consider splitting your lists or using professional SMTP services like SendGrid.
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px', marginBottom: '16px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>Sending Speed / Mode</label>
+            <select
+              className="form-input"
+              value={sendSpeed}
+              onChange={e => setSendSpeed(e.target.value)}
+              disabled={sending}
+              style={{ fontSize: '0.85rem' }}
+            >
+              <option value="gmail">Safe Mode (Gmail) — 1 email / 4s</option>
+              <option value="standard">Standard Mode — ~2 emails / second</option>
+              <option value="turbo">Turbo Mode (SMTP Relays) — High-speed parallel</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="btn-group">
+          <button className={`btn ${isClient ? 'btn-client' : 'btn-investor'} btn-lg`}
+            onClick={handleSendEmails} disabled={sending || contacts.length === 0}>
+            {sending ? <><span className="spinner"></span> Sending {progress.sent + progress.failed} / {progress.total}...</> : `Send emails (${emailContacts.length.toLocaleString()})`}
           </button>
-        ))}
-      </div>
-
-      <div className="form-group">
-        <label>Subject line</label>
-        <input type="text" className="form-input" value={subject}
-          onChange={e => setSubject(e.target.value)} placeholder="Email subject..." />
-      </div>
-
-      <div className="form-group">
-        <label>Message</label>
-        <textarea className="form-input" value={body}
-          onChange={e => setBody(e.target.value)} placeholder="Write your message here..." />
-        <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '8px', marginBottom: '4px' }}>
-          <strong>From their Excel data:</strong>
-        </p>
-        <div className="variable-tags">
-          {contactVars.map(v => (
-            <button key={v} className="variable-tag" onClick={() => insertVariable(v)}>{v}</button>
-          ))}
+          <button className="btn btn-whatsapp btn-lg" onClick={handleWhatsApp} disabled={contacts.length === 0}>
+            WhatsApp links ({contacts.filter(c => c.phone).length.toLocaleString()})
+          </button>
         </div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '8px', marginBottom: '4px' }}>
-          <strong>From your company profile:</strong>
-        </p>
-        <div className="variable-tags">
-          {companyVars.map(v => (
-            <button key={v} className="variable-tag" onClick={() => insertVariable(v)}>{v}</button>
-          ))}
-        </div>
-      </div>
 
-      <div className="btn-group">
-        <button className={`btn ${isClient ? 'btn-client' : 'btn-investor'} btn-lg`}
-          onClick={handleSendEmails} disabled={sending || contacts.length === 0}>
-          {sending ? <><span className="spinner"></span> Sending {progress.sent + progress.failed} / {progress.total}...</> : `Send emails (${contacts.filter(c => c.email).length.toLocaleString()})`}
-        </button>
-        <button className="btn btn-whatsapp btn-lg" onClick={handleWhatsApp} disabled={contacts.length === 0}>
-          WhatsApp links ({contacts.filter(c => c.phone).length.toLocaleString()})
-        </button>
-      </div>
+        {/* Progress */}
+        {(sending || sendResults.length > 0 || (jobId && jobStatus && jobStatus !== 'completed')) && (
+          <div className="progress-section">
+            <hr className="section-divider" />
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px', color: 'var(--gray-700)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>
+                {jobStatus === 'running' && `⚡ Sending Campaign... ${Math.round(progressPercent)}%`}
+                {jobStatus === 'paused' && `⏸️ Campaign Paused (${Math.round(progressPercent)}%)`}
+                {jobStatus === 'interrupted' && `⚠️ Campaign Interrupted (${Math.round(progressPercent)}%)`}
+                {jobStatus === 'failed' && `❌ Campaign Failed`}
+                {jobStatus === 'cancelled' && `🛑 Campaign Cancelled`}
+                {(!jobStatus || jobStatus === 'completed') && `✅ Campaign Completed — ${progress.sent.toLocaleString()} sent`}
+                {jobId && <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginLeft: '8px' }}>(batch mode)</span>}
+              </span>
+            </h4>
+            <div className="progress-bar-container">
+              <div className={`progress-bar-fill ${isClient ? 'client' : 'investor'}`}
+                style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="progress-stats">
+              <span className="stat sent">✓ {progress.sent.toLocaleString()} sent</span>
+              <span className="stat failed">✗ {progress.failed.toLocaleString()} failed</span>
+              <span className="stat pending">… {(progress.total - progress.sent - progress.failed).toLocaleString()} remaining</span>
+            </div>
 
-      {/* Progress */}
-      {(sending || sendResults.length > 0) && (
-        <div className="progress-section">
-          <hr className="section-divider" />
-          <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px', color: 'var(--gray-700)' }}>
-            {sending ? `Sending... ${Math.round(progressPercent)}%` : `Done — ${progress.sent.toLocaleString()} sent`}
-            {jobId && <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginLeft: '8px' }}>(batch mode)</span>}
-          </h4>
-          <div className="progress-bar-container">
-            <div className={`progress-bar-fill ${isClient ? 'client' : 'investor'}`}
-              style={{ width: `${progressPercent}%` }} />
+            {jobId && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px', marginBottom: '16px' }}>
+                {jobStatus === 'running' && (
+                  <button className="btn btn-secondary btn-sm" onClick={handlePauseCampaign} style={{ background: '#fef3c7', color: '#d97706', border: '1px solid #fcd34d', borderRadius: '6px', fontSize: '0.8rem', padding: '6px 12px' }}>
+                    ⏸️ Pause Campaign
+                  </button>
+                )}
+                {(jobStatus === 'paused' || jobStatus === 'interrupted' || jobStatus === 'failed') && (
+                  <button className="btn btn-secondary btn-sm" onClick={handleResumeCampaign} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', borderRadius: '6px', fontSize: '0.8rem', padding: '6px 12px' }}>
+                    ▶️ Resume Campaign
+                  </button>
+                )}
+                {(jobStatus === 'running' || jobStatus === 'paused' || jobStatus === 'interrupted') && (
+                  <button className="btn btn-secondary btn-sm" onClick={handleCancelCampaign} style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '0.8rem', padding: '6px 12px' }}>
+                    🛑 Cancel Campaign
+                  </button>
+                )}
+                {sendResults.some(r => r.status === 'failed') && (
+                  <button className="btn btn-secondary btn-sm" onClick={downloadFailuresCSV} style={{ marginLeft: 'auto', background: '#f3f4f6', color: '#4b5563', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.8rem', padding: '6px 12px' }}>
+                    📥 Download Failures
+                  </button>
+                )}
+              </div>
+            )}
+
+            {sendResults.length > 0 && (
+              <div className="send-results" style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '8px', marginTop: '12px' }}>
+                {sendResults.slice(-100).map((result, i) => (
+                  <div key={i} className="result-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '4px', borderBottom: '1px solid var(--gray-100)', padding: '8px 4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className={`result-status ${result.status === 'sent' ? 'success' : 'failed'}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: result.status === 'sent' ? 'var(--green)' : 'var(--red)' }} />
+                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-700)', wordBreak: 'break-all' }}>{result.email}</span>
+                      </div>
+                      <span className="tag" style={result.status === 'sent'
+                        ? { background: 'var(--green-light)', color: 'var(--green)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }
+                        : { background: 'var(--red-light)', color: 'var(--red)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                        {result.status}
+                      </span>
+                    </div>
+                    {result.error && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--red)', marginLeft: '16px', wordBreak: 'break-all' }}>
+                        ⚠️ {result.error}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="progress-stats">
-            <span className="stat sent">✓ {progress.sent.toLocaleString()} sent</span>
-            <span className="stat failed">✗ {progress.failed.toLocaleString()} failed</span>
-            <span className="stat pending">… {(progress.total - progress.sent - progress.failed).toLocaleString()} remaining</span>
-          </div>
-          {sendResults.length > 0 && (
-            <div className="send-results">
-              {sendResults.slice(-50).map((result, i) => (
-                <div key={i} className="result-item">
-                  <div className={`result-status ${result.status === 'sent' ? 'success' : 'failed'}`} />
-                  <span style={{ flex: 1 }}>{result.email}</span>
-                  <span className="tag" style={result.status === 'sent'
-                    ? { background: 'var(--green-light)', color: 'var(--green)' }
-                    : { background: 'var(--red-light)', color: 'var(--red)' }}>
-                    {result.status}
-                  </span>
+        )}
+
+        {/* WhatsApp */}
+        {showWhatsApp && waLinks.length > 0 && (
+          <div className="progress-section">
+            <hr className="section-divider" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--gray-700)' }}>
+                WhatsApp links ({waLinks.length.toLocaleString()})
+              </h4>
+              <button className="btn btn-whatsapp btn-sm" onClick={openAllWaLinks}>Open all</button>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-400)', marginBottom: '12px' }}>
+              Each link opens WhatsApp with your message pre-filled. Just hit send.
+            </p>
+            <div className="whatsapp-links">
+              {waLinks.slice(0, 100).map((item, i) => (
+                <div key={i} className="wa-link-item">
+                  <div className="wa-link-info">
+                    <span className="wa-icon">💬</span>
+                    <div>
+                      <div className="wa-name">{item.name || 'Unknown'}</div>
+                      <div className="wa-phone">{item.phone}</div>
+                    </div>
+                  </div>
+                  <button className="wa-send-btn" onClick={() => openWaLink(item.link)}>Open</button>
                 </div>
               ))}
+              {waLinks.length > 100 && (
+                <p style={{ padding: '12px', color: 'var(--gray-400)', fontSize: '0.82rem', textAlign: 'center' }}>
+                  Showing first 100 of {waLinks.length.toLocaleString()} links. Use "Open all" to send to everyone.
+                </p>
+              )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* WhatsApp */}
-      {showWhatsApp && waLinks.length > 0 && (
-        <div className="progress-section">
-          <hr className="section-divider" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--gray-700)' }}>
-              WhatsApp links ({waLinks.length.toLocaleString()})
-            </h4>
-            <button className="btn btn-whatsapp btn-sm" onClick={openAllWaLinks}>Open all</button>
           </div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--gray-400)', marginBottom: '12px' }}>
-            Each link opens WhatsApp with your message pre-filled. Just hit send.
-          </p>
-          <div className="whatsapp-links">
-            {waLinks.slice(0, 100).map((item, i) => (
-              <div key={i} className="wa-link-item">
-                <div className="wa-link-info">
-                  <span className="wa-icon">💬</span>
-                  <div>
-                    <div className="wa-name">{item.name || 'Unknown'}</div>
-                    <div className="wa-phone">{item.phone}</div>
-                  </div>
-                </div>
-                <button className="wa-send-btn" onClick={() => openWaLink(item.link)}>Open</button>
+        )}
+      </div>
+
+      {/* Right Pane: Interactive Live Email Preview */}
+      {emailContacts.length > 0 && currentPreviewContact && (
+        <div style={{ background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: '12px', padding: '24px', position: 'sticky', top: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-100)', paddingBottom: '12px', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--gray-800)' }}>🔍 Live Email Preview</h3>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={handlePrevPreview} style={{ padding: '4px 8px' }}>◀</button>
+              <span style={{ fontSize: '0.82rem', color: 'var(--gray-500)', fontWeight: 500 }}>
+                {previewIndex + 1} / {emailContacts.length}
+              </span>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={handleNextPreview} style={{ padding: '4px 8px' }}>▶</button>
+            </div>
+          </div>
+
+          <div style={{ border: '1px solid var(--gray-100)', borderRadius: '8px', padding: '16px', background: 'var(--gray-50)', minHeight: '350px', fontSize: '0.85rem' }}>
+            <div style={{ borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px', marginBottom: '12px' }}>
+              <div style={{ marginBottom: '6px', color: 'var(--gray-600)' }}>
+                <strong>To:</strong> {currentPreviewContact.name || 'Unknown'} 
+                {currentPreviewContact.email ? ` <${currentPreviewContact.email}>` : ''}
+                {currentPreviewContact.designation && ` — ${currentPreviewContact.designation}`}
+                {currentPreviewContact.company && ` @ ${currentPreviewContact.company}`}
               </div>
-            ))}
-            {waLinks.length > 100 && (
-              <p style={{ padding: '12px', color: 'var(--gray-400)', fontSize: '0.82rem', textAlign: 'center' }}>
-                Showing first 100 of {waLinks.length.toLocaleString()} links. Use "Open all" to send to everyone.
-              </p>
+              <div style={{ color: 'var(--gray-800)', fontWeight: 600 }}>
+                <strong>Subject:</strong> {previewSubject}
+              </div>
+            </div>
+            
+            <div style={{ 
+              whiteSpace: 'pre-wrap', 
+              color: 'var(--gray-700)', 
+              lineHeight: '1.5', 
+              maxHeight: '260px', 
+              overflowY: 'auto',
+              paddingRight: '6px'
+            }}>
+              {previewBody}
+            </div>
+
+            {companyProfile.attachments && companyProfile.attachments.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px dotted var(--gray-200)' }}>
+                <strong style={{ display: 'block', fontSize: '0.78rem', color: 'var(--gray-500)', marginBottom: '6px' }}>
+                  Attachments ({companyProfile.attachments.length}):
+                </strong>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {companyProfile.attachments.map((file, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px', 
+                      background: 'var(--white)', 
+                      padding: '4px 8px', 
+                      borderRadius: '4px', 
+                      border: '1px solid var(--gray-200)',
+                      fontSize: '0.75rem',
+                      color: 'var(--gray-600)'
+                    }}>
+                      <span>📎</span>
+                      <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
+          </div>
+          
+          <div style={{ marginTop: '12px', padding: '10px 12px', background: 'var(--blue-light)', borderRadius: '8px', fontSize: '0.78rem', color: 'var(--gray-600)' }}>
+            💡 <strong>Pro Tip:</strong> Click the ◀ and ▶ buttons at the top right to verify that names and other dynamic details match correctly for each contact.
           </div>
         </div>
       )}
     </div>
   )
 }
+

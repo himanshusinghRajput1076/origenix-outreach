@@ -93,6 +93,8 @@ const COLUMN_ALIASES = {
 
 /**
  * Parse an Excel buffer (.xlsx / .xls) and return structured contact data.
+ * Optimised: uses dense_mode to skip allocation of sparse arrays and
+ * skips raw header rows faster with index-based access.
  *
  * @param {Buffer} buffer — raw file bytes
  * @returns {{ headers: string[], contacts: object[], totalCount: number }}
@@ -102,7 +104,9 @@ export function parseExcel(buffer) {
     throw new Error("Empty or missing file buffer");
   }
 
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  // cellDates: parse date serial numbers to JS Date objects
+  // dense: use dense 2-D array internally (faster for large sheets)
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true, dense: true });
 
   if (workbook.SheetNames.length === 0) {
     throw new Error("The uploaded workbook contains no sheets");
@@ -111,7 +115,7 @@ export function parseExcel(buffer) {
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
 
-  // Convert to array-of-arrays so we can inspect the header row ourselves
+  // sheet_to_json with header:1 returns array-of-arrays — fastest path
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
   if (rows.length === 0) {
@@ -121,29 +125,45 @@ export function parseExcel(buffer) {
   // ---------- Header detection ----------
   const rawHeaders = rows[0].map((h) => String(h).trim());
 
-  // Map each column index → canonical field name (or keep original header)
+  // Pre-build headerMap once (avoid repeated COLUMN_ALIASES lookups per row)
   const headerMap = rawHeaders.map((h) => {
     const key = h.toLowerCase();
     return COLUMN_ALIASES[key] || h;
   });
 
-  // ---------- Row parsing ----------
+  const colCount = headerMap.length;
+
+  // ---------- Row parsing (optimised tight loop) ----------
   const contacts = [];
+  const rowCount = rows.length;
 
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = 1; i < rowCount; i++) {
     const row = rows[i];
+    if (!row) continue;
 
-    // Skip completely empty rows
-    const allEmpty = row.every(
-      (cell) => cell === null || cell === undefined || String(cell).trim() === ""
-    );
-    if (allEmpty) continue;
+    // Fast empty-row check: look for any non-blank cell
+    let hasData = false;
+    for (let c = 0; c < colCount; c++) {
+      const v = row[c];
+      if (v !== null && v !== undefined && String(v).trim() !== "") {
+        hasData = true;
+        break;
+      }
+    }
+    if (!hasData) continue;
 
+    // Build contact object with pre-validated field names
     const contact = {};
-    headerMap.forEach((field, colIdx) => {
-      const value = row[colIdx];
-      contact[field] = value !== null && value !== undefined ? String(value).trim() : "";
-    });
+    for (let c = 0; c < colCount; c++) {
+      const value = row[c];
+      // Convert dates to ISO strings; everything else to trimmed string
+      if (value instanceof Date) {
+        contact[headerMap[c]] = value.toISOString().split("T")[0]; // YYYY-MM-DD
+      } else {
+        contact[headerMap[c]] =
+          value !== null && value !== undefined ? String(value).trim() : "";
+      }
+    }
 
     contacts.push(contact);
   }

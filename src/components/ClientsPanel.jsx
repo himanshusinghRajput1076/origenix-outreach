@@ -71,7 +71,7 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
           <p style={{ color: 'var(--gray-500)', fontSize: '0.85rem', marginBottom: '16px' }}>
             Drop your Excel file here. We'll pick up columns like Company Name, Contact Name, Designation, Email, Website, Products Dealing, Activities — all automatically.
           </p>
-          <ExcelUploader onContactsLoaded={handleContactsLoaded} variant="client" />
+          <ExcelUploader onContactsLoaded={handleContactsLoaded} variant="client" addToast={addToast} />
         </div>
       )}
 
@@ -111,7 +111,7 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
                 </thead>
                 <tbody>
                   {contacts.map((c, i) => (
-                    <tr key={i}>
+                    <tr key={c.email ? `${c.email}_${i}` : `${c.phone || ''}_${i}`}>
                       <td>{i + 1}</td>
                       <td style={{ color: 'var(--gray-800)', fontWeight: 500 }}>{c.company || '—'}</td>
                       <td>{c.name || '—'}{c.contact2 ? `, ${c.contact2}` : ''}</td>

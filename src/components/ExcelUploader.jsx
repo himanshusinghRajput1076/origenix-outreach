@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
 
-export default function ExcelUploader({ onContactsLoaded, variant = 'investor' }) {
+export default function ExcelUploader({ onContactsLoaded, variant = 'investor', addToast }) {
   const [dragging, setDragging] = useState(false)
   const [uploadedFile, setUploadedFile] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -40,14 +40,9 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor' }
   }
 
   const uploadFile = async (file) => {
-    const validTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      '.xlsx', '.xls'
-    ]
     const ext = file.name.split('.').pop().toLowerCase()
     if (!['xlsx', 'xls'].includes(ext)) {
-      alert('Please upload an Excel file (.xlsx or .xls)')
+      addToast?.('Please upload an Excel file (.xlsx or .xls)', 'error')
       return
     }
 
@@ -65,11 +60,11 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor' }
       if (data.success) {
         onContactsLoaded(data.contacts, data.headers)
       } else {
-        alert('Failed to parse Excel: ' + (data.error || 'Unknown error'))
+        addToast?.('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')
         setUploadedFile(null)
       }
     } catch (err) {
-      alert('Server not running. Please start the backend server (cd server && npm start)')
+      addToast?.('Server not running. Please start the backend server (cd server && npm start)', 'error')
       setUploadedFile(null)
     }
     setLoading(false)

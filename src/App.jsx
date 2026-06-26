@@ -11,26 +11,57 @@ import ToastContainer from './components/ToastContainer'
 function App() {
   const [activePanel, setActivePanel] = useState('dashboard')
   const [toasts, setToasts] = useState([])
-  const [companyProfile, setCompanyProfile] = useState({
-    companyName: 'OrigenixDigitalSolution',
-    founderName: '',
-    description: '',
-    website: '',
-    email: 'origenixdigitalsolution@gmail.com',
-    phone: '8815831129, 8223897320',
-    fundingAmount: '',
-    fundingPurpose: '',
-    highlights: ['', '', ''],
-    services: ['', '', ''],
-    attachments: []
+  const [companyProfile, setCompanyProfile] = useState(() => {
+    try {
+      const stored = localStorage.getItem('outreach_company_profile')
+      return stored ? JSON.parse(stored) : {
+        companyName: 'OrigenixDigitalSolution',
+        founderName: '',
+        description: '',
+        website: '',
+        email: 'origenixdigitalsolution@gmail.com',
+        phone: '8815831129, 8223897320',
+        fundingAmount: '',
+        fundingPurpose: '',
+        highlights: ['', '', ''],
+        services: ['', '', ''],
+        attachments: []
+      }
+    } catch {
+      return {
+        companyName: 'OrigenixDigitalSolution',
+        founderName: '',
+        description: '',
+        website: '',
+        email: 'origenixdigitalsolution@gmail.com',
+        phone: '8815831129, 8223897320',
+        fundingAmount: '',
+        fundingPurpose: '',
+        highlights: ['', '', ''],
+        services: ['', '', ''],
+        attachments: []
+      }
+    }
   })
   const [clientContacts, setClientContacts] = useState([])
   const [investorContacts, setInvestorContacts] = useState([])
-  const [smtpConfig, setSmtpConfig] = useState({
-    host: 'smtp.gmail.com',
-    port: '587',
-    email: 'origenixdigitalsolution@gmail.com',
-    password: ''
+  const [smtpConfig, setSmtpConfig] = useState(() => {
+    try {
+      const stored = localStorage.getItem('outreach_smtp_config')
+      return stored ? JSON.parse(stored) : {
+        host: 'smtp.gmail.com',
+        port: '587',
+        email: 'origenixdigitalsolution@gmail.com',
+        password: ''
+      }
+    } catch {
+      return {
+        host: 'smtp.gmail.com',
+        port: '587',
+        email: 'origenixdigitalsolution@gmail.com',
+        password: ''
+      }
+    }
   })
 
   // Leads CRM State loaded from LocalStorage
