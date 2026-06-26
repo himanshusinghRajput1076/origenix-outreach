@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import ExcelUploader from './ExcelUploader'
 import MessageComposer from './MessageComposer'
+import { maskEmail, maskPhone } from '../utils/mask'
 
 export default function ClientsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast, onImportCRM }) {
   const [headers, setHeaders] = useState([])
   const [activeTab, setActiveTab] = useState('upload')
+  const [revealed, setRevealed] = useState({})
+
+  const toggleReveal = (key) => {
+    setRevealed(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const handleContactsLoaded = (loadedContacts, loadedHeaders) => {
     setContacts(loadedContacts)
@@ -116,8 +122,36 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
                       <td style={{ color: 'var(--gray-800)', fontWeight: 500 }}>{c.company || '—'}</td>
                       <td>{c.name || '—'}{c.contact2 ? `, ${c.contact2}` : ''}</td>
                       <td>{c.designation || '—'}</td>
-                      <td>{c.email || '—'}</td>
-                      <td>{c.phone || '—'}</td>
+                       <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                          <span>{c.email ? (revealed[`${i}_email`] ? c.email : maskEmail(c.email)) : '—'}</span>
+                          {c.email && (
+                            <button 
+                              type="button"
+                              onClick={() => toggleReveal(`${i}_email`)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '0.9rem', color: 'var(--gray-400)', display: 'inline-flex', alignItems: 'center' }}
+                              title={revealed[`${i}_email`] ? 'Hide' : 'Reveal'}
+                            >
+                              {revealed[`${i}_email`] ? '🙈' : '👁️'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                          <span>{c.phone ? (revealed[`${i}_phone`] ? c.phone : maskPhone(c.phone)) : '—'}</span>
+                          {c.phone && (
+                            <button 
+                              type="button"
+                              onClick={() => toggleReveal(`${i}_phone`)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '0.9rem', color: 'var(--gray-400)', display: 'inline-flex', alignItems: 'center' }}
+                              title={revealed[`${i}_phone`] ? 'Hide' : 'Reveal'}
+                            >
+                              {revealed[`${i}_phone`] ? '🙈' : '👁️'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         {c.website ? (
                           <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`}

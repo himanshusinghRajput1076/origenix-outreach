@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import API_BASE from '../config'
 import { getAttachment } from '../utils/db'
+import { getRemainingDailyQuota, incrementDailyCount } from '../utils/limit'
+import { maskEmail, maskPhone } from '../utils/mask'
 
 export default function MessageComposer({ contacts, companyProfile, smtpConfig, addToast, variant = 'investor' }) {
   const isClient = variant === 'client'
@@ -251,6 +253,16 @@ Best,
       return
     }
 
+    const remainingQuota = getRemainingDailyQuota('email')
+    if (remainingQuota <= 0) {
+      setSending(false)
+      setJobStatus('paused')
+      const nextState = { ...currentCampaignState, status: 'paused' }
+      localStorage.setItem('active_outreach_campaign', JSON.stringify(nextState))
+      addToast('Daily limit reached: You have reached your daily quota of 500 emails. Campaign paused.', 'warning')
+      return
+    }
+
     // Determine concurrency and delay based on speed setting
     let concurrency = 1
     let delayBetweenMs = 4000
@@ -265,8 +277,9 @@ Best,
       delayBetweenMs = currentCampaignState.customDelay !== undefined ? currentCampaignState.customDelay : 0
     }
 
+    const batchSize = Math.min(concurrency, remainingQuota)
     // Get the next batch of contacts
-    const batch = campaignContacts.slice(currentIndex, currentIndex + concurrency)
+    const batch = campaignContacts.slice(currentIndex, currentIndex + batchSize)
     
     // Prepare API request payload
     const payload = {
@@ -292,6 +305,12 @@ Best,
 
       if (data.success && data.results) {
         const nextResults = [...results, ...data.results]
+        
+        const batchSentCount = data.results.filter(r => r.status === 'sent').length
+        if (batchSentCount > 0) {
+          incrementDailyCount('email', batchSentCount)
+        }
+
         const nextSent = nextResults.filter(r => r.status === 'sent').length
         const nextFailed = nextResults.filter(r => r.status === 'failed').length
         const nextIndex = currentIndex + batch.length
@@ -471,6 +490,12 @@ Best,
       return
     }
 
+    const remainingQuota = getRemainingDailyQuota('email')
+    if (remainingQuota === 0) {
+      addToast('Daily email quota exceeded. You can only send up to 500 emails per day.', 'error')
+      return
+    }
+
     setSending(true)
     setSendResults([])
     setJobStatus('running')
@@ -513,17 +538,31 @@ Best,
       addToast('None of your contacts have phone numbers.', 'warning')
       return
     }
+
+    const remainingQuota = getRemainingDailyQuota('whatsapp')
+    if (remainingQuota <= 0) {
+      addToast('Daily WhatsApp link quota exceeded. You have already reached your daily limit of 500 links.', 'error')
+      return
+    }
+
+    let contactsToProcess = phoneContacts
+    if (phoneContacts.length > remainingQuota) {
+      addToast(`Daily quota warning: Slicing list to first ${remainingQuota} contacts to stay within your daily limit.`, 'warning')
+      contactsToProcess = phoneContacts.slice(0, remainingQuota)
+    }
+
     try {
       const filledBody = fillCompanyVars(body)
       const res = await fetch(`${API_BASE}/generate-whatsapp-links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts: phoneContacts, messageTemplate: filledBody })
+        body: JSON.stringify({ contacts: contactsToProcess, messageTemplate: filledBody })
       })
       const data = await res.json()
       if (data.success) {
         setWaLinks(data.links)
         setShowWhatsApp(true)
+        incrementDailyCount('whatsapp', data.links.length)
         addToast(`${data.links.length.toLocaleString()} WhatsApp links ready`, 'success')
       }
     } catch {
@@ -743,7 +782,7 @@ Best,
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div className={`result-status ${result.status === 'sent' ? 'success' : 'failed'}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: result.status === 'sent' ? 'var(--green)' : 'var(--red)' }} />
-                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-700)', wordBreak: 'break-all' }}>{result.email}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--gray-700)', wordBreak: 'break-all' }}>{maskEmail(result.email)}</span>
                       </div>
                       <span className="tag" style={result.status === 'sent'
                         ? { background: 'var(--green-light)', color: 'var(--green)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }
@@ -783,7 +822,7 @@ Best,
                     <span className="wa-icon">💬</span>
                     <div>
                       <div className="wa-name">{item.name || 'Unknown'}</div>
-                      <div className="wa-phone">{item.phone}</div>
+                      <div className="wa-phone">{maskPhone(item.phone)}</div>
                     </div>
                   </div>
                   <button className="wa-send-btn" onClick={() => openWaLink(item.link)}>Open</button>
@@ -817,7 +856,7 @@ Best,
             <div style={{ borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px', marginBottom: '12px' }}>
               <div style={{ marginBottom: '6px', color: 'var(--gray-600)' }}>
                 <strong>To:</strong> {currentPreviewContact.name || 'Unknown'} 
-                {currentPreviewContact.email ? ` <${currentPreviewContact.email}>` : ''}
+                {currentPreviewContact.email ? ` <${maskEmail(currentPreviewContact.email)}>` : ''}
                 {currentPreviewContact.designation && ` — ${currentPreviewContact.designation}`}
                 {currentPreviewContact.company && ` @ ${currentPreviewContact.company}`}
               </div>

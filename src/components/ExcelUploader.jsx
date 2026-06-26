@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
+import { checkDailyLimit, incrementDailyCount, getRemainingDailyQuota } from '../utils/limit'
 
 export default function ExcelUploader({ onContactsLoaded, variant = 'investor', addToast }) {
   const [dragging, setDragging] = useState(false)
@@ -58,6 +59,23 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor', 
       })
       const data = await res.json()
       if (data.success) {
+        const count = data.contacts.length
+        if (count > 500) {
+          addToast?.('Limit exceeded: You can only upload up to 500 contacts at a time.', 'error')
+          setUploadedFile(null)
+          onContactsLoaded([], [])
+          setLoading(false)
+          return
+        }
+        if (!checkDailyLimit('upload', count)) {
+          addToast?.(`Daily limit exceeded: Remaining upload quota for today is ${getRemainingDailyQuota('upload')} contacts.`, 'error')
+          setUploadedFile(null)
+          onContactsLoaded([], [])
+          setLoading(false)
+          return
+        }
+        
+        incrementDailyCount('upload', count)
         onContactsLoaded(data.contacts, data.headers)
       } else {
         addToast?.('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')

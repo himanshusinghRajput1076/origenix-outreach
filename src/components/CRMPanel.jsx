@@ -1,9 +1,26 @@
 import { useState, useMemo } from 'react'
+import { maskEmail, maskPhone } from '../utils/mask'
 
 export default function CRMPanel({ leads, onSaveLeads, addToast }) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [viewMode, setViewMode] = useState('pipeline') // 'pipeline' or 'list'
+  const [revealed, setRevealed] = useState({})
+
+  const toggleReveal = (key, e) => {
+    if (e) e.stopPropagation()
+    setRevealed(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleSelectLead = (lead) => {
+    setRevealed(prev => {
+      const next = { ...prev }
+      delete next['modal_email']
+      delete next['modal_phone']
+      return next
+    })
+    setSelectedLead(lead)
+  }
   
   // Modal State
   const [selectedLead, setSelectedLead] = useState(null)
@@ -291,7 +308,7 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                           className="crm-card"
                           draggable
                           onDragStart={e => handleDragStart(e, lead.id)}
-                          onClick={() => setSelectedLead(lead)}
+                          onClick={() => handleSelectLead(lead)}
                         >
                           <div className="crm-card-header">
                             <span className={`tag ${lead.type === 'client' ? 'tag-client' : 'tag-investor'}`} style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
@@ -341,11 +358,39 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                   </tr>
                 ) : (
                   filteredLeads.map(lead => (
-                    <tr key={lead.id} className="crm-list-row" onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
+                    <tr key={lead.id} className="crm-list-row" onClick={() => handleSelectLead(lead)} style={{ cursor: 'pointer' }}>
                       <td style={{ color: 'var(--gray-900)', fontWeight: 500 }}>{lead.name}</td>
                       <td>{lead.company || '—'}</td>
-                      <td>{lead.email || '—'}</td>
-                      <td>{lead.phone || '—'}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                          <span>{lead.email ? (revealed[`${lead.id}_email`] ? lead.email : maskEmail(lead.email)) : '—'}</span>
+                          {lead.email && (
+                            <button 
+                              type="button"
+                              onClick={(e) => toggleReveal(`${lead.id}_email`, e)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '0.9rem', color: 'var(--gray-400)', display: 'inline-flex', alignItems: 'center' }}
+                              title={revealed[`${lead.id}_email`] ? 'Hide' : 'Reveal'}
+                            >
+                              {revealed[`${lead.id}_email`] ? '🙈' : '👁️'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                          <span>{lead.phone ? (revealed[`${lead.id}_phone`] ? lead.phone : maskPhone(lead.phone)) : '—'}</span>
+                          {lead.phone && (
+                            <button 
+                              type="button"
+                              onClick={(e) => toggleReveal(`${lead.id}_phone`, e)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '0.9rem', color: 'var(--gray-400)', display: 'inline-flex', alignItems: 'center' }}
+                              title={revealed[`${lead.id}_phone`] ? 'Hide' : 'Reveal'}
+                            >
+                              {revealed[`${lead.id}_phone`] ? '🙈' : '👁️'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <span className={`tag ${lead.type === 'client' ? 'tag-client' : 'tag-investor'}`}>
                           {lead.type}
@@ -368,7 +413,7 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                           className="btn btn-sm btn-secondary" 
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedLead(lead)
+                            handleSelectLead(lead)
                           }}
                           style={{ padding: '4px 8px' }}
                         >
@@ -515,21 +560,63 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
               </div>
               <div className="form-group">
                 <label>Email</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  value={selectedLead.email} 
-                  onChange={e => handleUpdateLeadField('email', e.target.value)}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {revealed['modal_email'] ? (
+                    <input 
+                      type="email" 
+                      className="form-input" 
+                      value={selectedLead.email} 
+                      onChange={e => handleUpdateLeadField('email', e.target.value)}
+                      style={{ margin: 0, flex: 1 }}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={maskEmail(selectedLead.email)} 
+                      readOnly
+                      style={{ margin: 0, flex: 1, backgroundColor: 'var(--gray-50)', color: 'var(--gray-500)', cursor: 'not-allowed' }}
+                    />
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => toggleReveal('modal_email')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '1rem', color: 'var(--gray-500)' }}
+                    title={revealed['modal_email'] ? 'Lock / Hide' : 'Reveal & Edit'}
+                  >
+                    {revealed['modal_email'] ? '🔒' : '👁️'}
+                  </button>
+                </div>
               </div>
               <div className="form-group">
                 <label>Phone</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={selectedLead.phone} 
-                  onChange={e => handleUpdateLeadField('phone', e.target.value)}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {revealed['modal_phone'] ? (
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={selectedLead.phone} 
+                      onChange={e => handleUpdateLeadField('phone', e.target.value)}
+                      style={{ margin: 0, flex: 1 }}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={maskPhone(selectedLead.phone)} 
+                      readOnly
+                      style={{ margin: 0, flex: 1, backgroundColor: 'var(--gray-50)', color: 'var(--gray-500)', cursor: 'not-allowed' }}
+                    />
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => toggleReveal('modal_phone')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', fontSize: '1rem', color: 'var(--gray-500)' }}
+                    title={revealed['modal_phone'] ? 'Lock / Hide' : 'Reveal & Edit'}
+                  >
+                    {revealed['modal_phone'] ? '🔒' : '👁️'}
+                  </button>
+                </div>
               </div>
               <div className="form-group">
                 <label>Website</label>
