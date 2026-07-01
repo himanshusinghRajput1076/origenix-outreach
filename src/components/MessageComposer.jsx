@@ -148,6 +148,7 @@ Best,
   const [customConcurrency, setCustomConcurrency] = useState(5)
   const [customDelay, setCustomDelay] = useState(0)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const selectTemplate = (name) => {
     setActiveTemplate(name)
@@ -643,6 +644,98 @@ Best,
     setPreviewIndex(prev => (prev < emailContacts.length - 1 ? prev + 1 : 0))
   }
 
+  const handleExportCSV = () => {
+    if (contacts.length === 0) {
+      addToast('No contacts to export.', 'warning')
+      return
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Designation', 'Website', 'Products/Activities']
+    const rows = contacts.map(c => [
+      c.name || '',
+      c.email || '',
+      c.phone || '',
+      c.company || '',
+      c.designation || '',
+      c.website || '',
+      c.products || c.activities || ''
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `outreach_contacts_export_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    addToast('Contacts spreadsheet CSV downloaded!', 'success')
+  }
+
+  const handleExportTemplate = (platform) => {
+    let exportBody = body
+    let exportSubject = subject
+
+    const maps = {
+      mailchimp: {
+        '{name}': '*|FNAME|*',
+        '{company}': '*|COMPANY|*',
+        '{designation}': '*|TITLE|*',
+        '{email}': '*|EMAIL|*',
+        '{website}': '*|URL|*',
+        '{products}': '*|PRODUCTS|*',
+        '{activities}': '*|ACTIVITIES|*'
+      },
+      brevo: {
+        '{name}': '{{ contact.NAME }}',
+        '{company}': '{{ contact.COMPANY }}',
+        '{designation}': '{{ contact.DESIGNATION }}',
+        '{email}': '{{ contact.EMAIL }}',
+        '{website}': '{{ contact.WEBSITE }}',
+        '{products}': '{{ contact.PRODUCTS }}',
+        '{activities}': '{{ contact.ACTIVITIES }}'
+      },
+      universal: {
+        '{name}': '{{name}}',
+        '{company}': '{{company}}',
+        '{designation}': '{{designation}}',
+        '{email}': '{{email}}',
+        '{website}': '{{website}}',
+        '{products}': '{{products}}',
+        '{activities}': '{{activities}}'
+      }
+    }
+
+    const currentMap = maps[platform] || maps.universal
+
+    // Fill company profile variables first
+    exportBody = fillCompanyVars(exportBody)
+    exportSubject = fillCompanyVars(exportSubject)
+
+    // Fill contact variables with target platform tags
+    Object.keys(currentMap).forEach(localTag => {
+      const regex = new RegExp(localTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+      exportBody = exportBody.replace(regex, currentMap[localTag])
+      exportSubject = exportSubject.replace(regex, currentMap[localTag])
+    })
+
+    const templateText = `Subject: ${exportSubject}\n\n${exportBody}`
+    const blob = new Blob([templateText], { type: 'text/plain;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `outreach_template_${platform}_${Date.now()}.txt`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    addToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} template downloaded!`, 'success')
+  }
+
   return (
     <div style={emailContacts.length > 0 ? { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' } : {}}>
       {/* Left Pane: Composer Form */}
@@ -765,6 +858,9 @@ Best,
           </button>
           <button className="btn btn-whatsapp btn-lg" onClick={handleWhatsApp} disabled={contacts.length === 0}>
             WhatsApp links ({contacts.filter(c => c.phone).length.toLocaleString()})
+          </button>
+          <button className="btn btn-secondary btn-lg" onClick={() => setShowExportModal(true)} disabled={contacts.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            📥 Export Mail Merge
           </button>
         </div>
 
@@ -948,6 +1044,59 @@ Best,
           
           <div style={{ marginTop: '12px', padding: '10px 12px', background: 'var(--blue-light)', borderRadius: '8px', fontSize: '0.78rem', color: 'var(--gray-600)' }}>
             💡 <strong>Pro Tip:</strong> Click the ◀ and ▶ buttons at the top right to verify that names and other dynamic details match correctly for each contact.
+          </div>
+        </div>
+      )}
+      {showExportModal && (
+        <div className="modal-backdrop" onClick={() => setShowExportModal(false)}>
+          <div className="modal-content cyber-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0 }}>📥 Export for External Bulk Tools</h3>
+              <button className="modal-close" onClick={() => setShowExportModal(false)}>×</button>
+            </div>
+            
+            <div style={{ padding: '16px 0', fontSize: '0.88rem', color: 'var(--gray-700)' }}>
+              <p style={{ marginBottom: '16px' }}>
+                Prepare your contact list and email template for external bulk senders (such as Mailchimp, Brevo, or Gmail Mail Merge).
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Step 1: Download contacts spreadsheet */}
+                <div style={{ background: 'var(--gray-50)', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--gray-800)' }}>1. Export Contacts List</h4>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>
+                    Download your loaded list of {contacts.length} contacts as a clean CSV spreadsheet.
+                  </p>
+                  <button className="btn btn-client btn-sm" onClick={handleExportCSV}>
+                    📥 Download Contacts CSV
+                  </button>
+                </div>
+
+                {/* Step 2: Download converted template */}
+                <div style={{ background: 'var(--gray-50)', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--gray-800)' }}>2. Export Mail-Merge Email Template</h4>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>
+                    Convert and download the drafted message with placeholders formatted for your bulk email service.
+                  </p>
+                  
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('mailchimp')} style={{ background: '#ffe4e6', color: '#e11d48', border: 'none' }}>
+                      🐵 Mailchimp Tags
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('brevo')} style={{ background: '#eff6ff', color: '#1d4ed8', border: 'none' }}>
+                      ⚡ Brevo Tags
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('universal')} style={{ background: '#f3f4f6', color: '#4b5563', border: 'none' }}>
+                      🔤 Universal Tags
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--gray-100)', paddingTop: '12px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}
