@@ -4,7 +4,7 @@ import MessageComposer from './MessageComposer'
 import { maskEmail, maskPhone } from '../utils/mask'
 import { checkAndPromoteQueuedContacts } from '../utils/limit'
 
-export default function InvestorsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast, onImportCRM }) {
+export default function InvestorsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast, onImportCRM, onResetApp }) {
   const [headers, setHeaders] = useState([])
   const [activeTab, setActiveTab] = useState('upload')
   const [revealed, setRevealed] = useState({})
@@ -80,9 +80,14 @@ export default function InvestorsPanel({ contacts, setContacts, companyProfile, 
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Investors</h2>
-        <p>Send your pitch to potential investors — request funding, share your deck, and start conversations.</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2>Investors</h2>
+          <p>Send your pitch to potential investors — request funding, share your deck, and start conversations.</p>
+        </div>
+        <button className="btn btn-sm" onClick={onResetApp} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', fontWeight: 600 }}>
+          🚨 Reset App Data
+        </button>
       </div>
 
       {queuedCount > 0 && (

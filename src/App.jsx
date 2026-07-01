@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './index.css'
+import API_BASE from './config'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import ClientsPanel from './components/ClientsPanel'
@@ -12,6 +13,54 @@ import ToastContainer from './components/ToastContainer'
 function App() {
   const [activePanel, setActivePanel] = useState('dashboard')
   const [toasts, setToasts] = useState([])
+  const [smtpStatus, setSmtpStatus] = useState('unchecked') // 'unchecked', 'checking', 'connected', 'error'
+
+  const checkSmtpConnection = async (config = smtpConfig) => {
+    if (!config.email || !config.password) {
+      setSmtpStatus('disconnected')
+      return
+    }
+    setSmtpStatus('checking')
+    try {
+      const res = await fetch(`${API_BASE}/test-smtp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromEmail: config.email,
+          fromPassword: config.password,
+          smtpHost: config.host,
+          smtpPort: config.port
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSmtpStatus('connected')
+      } else {
+        setSmtpStatus('error')
+      }
+    } catch {
+      setSmtpStatus('error')
+    }
+  }
+
+  // Check SMTP connection on load and when SMTP config changes
+  useEffect(() => {
+    checkSmtpConnection()
+  }, [smtpConfig])
+
+  // Global reset handler
+  const handleResetApplication = () => {
+    if (window.confirm("⚠️ DANGER ZONE: Are you sure you want to RESET the entire application?\n\nThis will permanently delete all contacts, settings, leads, and outreach logs.")) {
+      if (window.confirm("PROCEED WITH RESET? All data will be lost forever. Click OK to wipe everything.")) {
+        localStorage.clear()
+        addToast('Application reset successfully! Wiping state...', 'success')
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      }
+    }
+  }
+
   const [companyProfile, setCompanyProfile] = useState(() => {
     try {
       const stored = localStorage.getItem('outreach_company_profile')
@@ -160,7 +209,12 @@ function App() {
           <Dashboard
             clientContacts={clientContacts}
             investorContacts={investorContacts}
-            leadsCount={leads.length}
+            leads={leads}
+            setLeads={saveLeads}
+            smtpStatus={smtpStatus}
+            onCheckSmtp={checkSmtpConnection}
+            onResetApp={handleResetApplication}
+            addToast={addToast}
             onNavigate={setActivePanel}
           />
         )
@@ -173,6 +227,7 @@ function App() {
             smtpConfig={smtpConfig}
             addToast={addToast}
             onImportCRM={(list) => importLeads(list, 'client')}
+            onResetApp={handleResetApplication}
           />
         )
       case 'investors':
@@ -184,6 +239,7 @@ function App() {
             smtpConfig={smtpConfig}
             addToast={addToast}
             onImportCRM={(list) => importLeads(list, 'investor')}
+            onResetApp={handleResetApplication}
           />
         )
       case 'connections':
@@ -207,11 +263,26 @@ function App() {
             setProfile={setCompanyProfile}
             smtpConfig={smtpConfig}
             setSmtpConfig={setSmtpConfig}
+            smtpStatus={smtpStatus}
+            onCheckSmtp={checkSmtpConnection}
+            onResetApp={handleResetApplication}
             addToast={addToast}
           />
         )
       default:
-        return <Dashboard clientContacts={clientContacts} investorContacts={investorContacts} leadsCount={leads.length} onNavigate={setActivePanel} />
+        return (
+          <Dashboard 
+            clientContacts={clientContacts} 
+            investorContacts={investorContacts} 
+            leads={leads} 
+            setLeads={saveLeads}
+            smtpStatus={smtpStatus}
+            onCheckSmtp={checkSmtpConnection}
+            onResetApp={handleResetApplication}
+            addToast={addToast} 
+            onNavigate={setActivePanel} 
+          />
+        )
     }
   }
 
@@ -223,6 +294,8 @@ function App() {
         clientCount={clientContacts.length}
         investorCount={investorContacts.length}
         leadsCount={leads.length}
+        smtpStatus={smtpStatus}
+        onResetApp={handleResetApplication}
       />
       <main className="main-content">
         <div className="page-content">

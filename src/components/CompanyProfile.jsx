@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import API_BASE from '../config'
 import { saveAttachment, removeAttachmentFromDB } from '../utils/db'
 
-export default function CompanyProfile({ profile, setProfile, smtpConfig, setSmtpConfig, addToast }) {
+export default function CompanyProfile({ profile, setProfile, smtpConfig, setSmtpConfig, smtpStatus, onCheckSmtp, onResetApp, addToast }) {
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [testingConnection, setTestingConnection] = useState(false)
@@ -318,6 +318,21 @@ export default function CompanyProfile({ profile, setProfile, smtpConfig, setSmt
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="card" style={{ marginBottom: '24px', border: '1px solid #fecaca', background: '#fff5f5' }}>
+        <div className="card-header" style={{ borderBottom: '1px solid #fee2e2' }}>
+          <h3 className="card-title" style={{ color: 'var(--red)', margin: 0 }}>🚨 Danger Zone</h3>
+        </div>
+        <div style={{ padding: '16px' }}>
+          <p style={{ color: 'var(--gray-600)', fontSize: '0.85rem', marginBottom: '12px' }}>
+            Wipe all local outreach configurations, contact active lists, rollover queue lists, and connections logs. This action cannot be undone.
+          </p>
+          <button className="btn" onClick={onResetApp} style={{ background: 'var(--red)', color: 'var(--white)', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+            Reset Application Data
+          </button>
         </div>
       </div>
 

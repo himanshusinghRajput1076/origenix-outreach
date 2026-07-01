@@ -1,4 +1,21 @@
-export default function Sidebar({ activePanel, setActivePanel, clientCount, investorCount, leadsCount }) {
+export default function Sidebar({ activePanel, setActivePanel, clientCount, investorCount, leadsCount, smtpStatus = 'unchecked', onResetApp }) {
+  const getSmtpBadge = () => {
+    switch (smtpStatus) {
+      case 'connected':
+        return { label: 'SMTP Online', color: '#22c55e', bg: '#dcfce7' }
+      case 'error':
+        return { label: 'SMTP Error', color: '#ef4444', bg: '#fee2e2' }
+      case 'checking':
+        return { label: 'Connecting...', color: '#f59e0b', bg: '#fef3c7' }
+      case 'disconnected':
+        return { label: 'SMTP Not Setup', color: '#94a3b8', bg: '#f1f5f9' }
+      default:
+        return { label: 'SMTP Status', color: '#94a3b8', bg: '#f1f5f9' }
+    }
+  }
+
+  const smtpBadge = getSmtpBadge()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -58,7 +75,20 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
           <span>Connections</span>
         </button>
 
-        <div className="sidebar-section-label">Setup</div>
+        <div className="sidebar-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Setup</span>
+          <span style={{ 
+            fontSize: '0.68rem', 
+            fontWeight: 600, 
+            padding: '2px 6px', 
+            borderRadius: '4px', 
+            background: smtpBadge.bg, 
+            color: smtpBadge.color,
+            textTransform: 'uppercase'
+          }}>
+            {smtpBadge.label}
+          </span>
+        </div>
         <button
           className={`nav-item ${activePanel === 'profile' ? 'active dashboard' : ''}`}
           onClick={() => setActivePanel('profile')}
@@ -70,6 +100,23 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
 
       <div className="sidebar-footer">
         <p className="sidebar-footer-info">OrigenixDigitalSolution © 2025</p>
+        <button 
+          onClick={onResetApp}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            color: 'var(--red)', 
+            cursor: 'pointer', 
+            fontSize: '0.72rem', 
+            textDecoration: 'underline', 
+            marginTop: '8px',
+            display: 'block',
+            width: '100%',
+            textAlign: 'center'
+          }}
+        >
+          🚨 Reset System Data
+        </button>
       </div>
     </aside>
   )
