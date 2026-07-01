@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
-import { checkDailyLimit, incrementDailyCount, getRemainingDailyQuota } from '../utils/limit'
+import { incrementDailyCount, getRemainingDailyQuota } from '../utils/limit'
 
 export default function ExcelUploader({ onContactsLoaded, variant = 'investor', addToast }) {
   const [dragging, setDragging] = useState(false)

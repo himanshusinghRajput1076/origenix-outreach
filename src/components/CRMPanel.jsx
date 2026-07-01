@@ -565,7 +565,7 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                     <input 
                       type="email" 
                       className="form-input" 
-                      value={selectedLead.email} 
+                      value={selectedLead.email || ''} 
                       onChange={e => handleUpdateLeadField('email', e.target.value)}
                       style={{ margin: 0, flex: 1 }}
                     />
@@ -595,7 +595,7 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                     <input 
                       type="text" 
                       className="form-input" 
-                      value={selectedLead.phone} 
+                      value={selectedLead.phone || ''} 
                       onChange={e => handleUpdateLeadField('phone', e.target.value)}
                       style={{ margin: 0, flex: 1 }}
                     />
