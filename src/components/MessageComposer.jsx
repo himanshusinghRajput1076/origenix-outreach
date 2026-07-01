@@ -700,6 +700,51 @@ Best,
         '{products}': '{{ contact.PRODUCTS }}',
         '{activities}': '{{ contact.ACTIVITIES }}'
       },
+      zoho: {
+        '{name}': '$[FNAME]$',
+        '{company}': '$[COMPANY]$',
+        '{designation}': '$[DESIGNATION]$',
+        '{email}': '$[EMAIL]$',
+        '{website}': '$[WEBSITE]$',
+        '{products}': '$[PRODUCTS]$',
+        '{activities}': '$[ACTIVITIES]$'
+      },
+      mailerlite: {
+        '{name}': '{$name}',
+        '{company}': '{$company}',
+        '{designation}': '{$designation}',
+        '{email}': '{$email}',
+        '{website}': '{$website}',
+        '{products}': '{$products}',
+        '{activities}': '{$activities}'
+      },
+      lemlist: {
+        '{name}': '{{firstName}}',
+        '{company}': '{{companyName}}',
+        '{designation}': '{{designation}}',
+        '{email}': '{{email}}',
+        '{website}': '{{website}}',
+        '{products}': '{{products}}',
+        '{activities}': '{{activities}}'
+      },
+      apollo: {
+        '{name}': '{{contact.first_name}}',
+        '{company}': '{{contact.organization_name}}',
+        '{designation}': '{{contact.title}}',
+        '{email}': '{{contact.email}}',
+        '{website}': '{{contact.website_url}}',
+        '{products}': '{{contact.custom_fields.products}}',
+        '{activities}': '{{contact.custom_fields.activities}}'
+      },
+      yamm: {
+        '{name}': '{{Name}}',
+        '{company}': '{{Company}}',
+        '{designation}': '{{Designation}}',
+        '{email}': '{{Email}}',
+        '{website}': '{{Website}}',
+        '{products}': '{{Products/Activities}}',
+        '{activities}': '{{Products/Activities}}'
+      },
       universal: {
         '{name}': '{{name}}',
         '{company}': '{{company}}',
@@ -733,7 +778,7 @@ Best,
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    addToast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} template downloaded!`, 'success')
+    addToast(`${platform === 'yamm' ? 'YAMM/GMass' : platform.charAt(0).toUpperCase() + platform.slice(1)} template downloaded!`, 'success')
   }
 
   return (
@@ -1049,23 +1094,23 @@ Best,
       )}
       {showExportModal && (
         <div className="modal-backdrop" onClick={() => setShowExportModal(false)}>
-          <div className="modal-content cyber-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content cyber-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '90%' }}>
             <div className="modal-header">
               <h3 style={{ margin: 0 }}>📥 Export for External Bulk Tools</h3>
               <button className="modal-close" onClick={() => setShowExportModal(false)}>×</button>
             </div>
             
-            <div style={{ padding: '16px 0', fontSize: '0.88rem', color: 'var(--gray-700)' }}>
+            <div style={{ padding: '16px 0', fontSize: '0.88rem', color: 'var(--gray-700)', maxHeight: '75vh', overflowY: 'auto' }}>
               <p style={{ marginBottom: '16px' }}>
-                Prepare your contact list and email template for external bulk senders (such as Mailchimp, Brevo, or Gmail Mail Merge).
+                Prepare your contact list and email template for external bulk senders (such as Mailchimp, Brevo, Lemlist, or Gmail Mail Merge).
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {/* Step 1: Download contacts spreadsheet */}
-                <div style={{ background: 'var(--gray-50)', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--gray-800)' }}>1. Export Contacts List</h4>
-                  <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>
-                    Download your loaded list of {contacts.length} contacts as a clean CSV spreadsheet.
+                <div style={{ background: 'var(--gray-50)', padding: '16px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.92rem', color: 'var(--gray-800)', fontWeight: 600 }}>1. Export Contacts List</h4>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--gray-500)', lineHeight: '1.4' }}>
+                    Download your active contact list ({contacts.length} contacts) as a clean CSV spreadsheet. Ideal for uploading to any bulk tool.
                   </p>
                   <button className="btn btn-client btn-sm" onClick={handleExportCSV}>
                     📥 Download Contacts CSV
@@ -1073,22 +1118,55 @@ Best,
                 </div>
 
                 {/* Step 2: Download converted template */}
-                <div style={{ background: 'var(--gray-50)', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--gray-800)' }}>2. Export Mail-Merge Email Template</h4>
-                  <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>
-                    Convert and download the drafted message with placeholders formatted for your bulk email service.
+                <div style={{ background: 'var(--gray-50)', padding: '16px', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.92rem', color: 'var(--gray-800)', fontWeight: 600 }}>2. Export Mail-Merge Email Template</h4>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--gray-500)', lineHeight: '1.4' }}>
+                    Convert and download the drafted message with placeholders formatted for your selected sending system.
                   </p>
                   
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('mailchimp')} style={{ background: '#ffe4e6', color: '#e11d48', border: 'none' }}>
-                      🐵 Mailchimp Tags
-                    </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('brevo')} style={{ background: '#eff6ff', color: '#1d4ed8', border: 'none' }}>
-                      ⚡ Brevo Tags
-                    </button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('universal')} style={{ background: '#f3f4f6', color: '#4b5563', border: 'none' }}>
-                      🔤 Universal Tags
-                    </button>
+                  {/* Category A: B2B Outreach */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '6px' }}>Cold B2B Outreach / Sequencing</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('lemlist')} style={{ background: '#fef3c7', color: '#b45309', border: 'none' }}>
+                        🔥 Lemlist / Smartlead
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('apollo')} style={{ background: '#e0f2fe', color: '#0369a1', border: 'none' }}>
+                        🚀 Apollo.io
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Category B: Email Marketing */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '6px' }}>Email Marketing Platforms</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('mailchimp')} style={{ background: '#ffe4e6', color: '#e11d48', border: 'none' }}>
+                        🐵 Mailchimp
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('brevo')} style={{ background: '#eff6ff', color: '#1d4ed8', border: 'none' }}>
+                        ⚡ Brevo
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('zoho')} style={{ background: '#f0fdf4', color: '#15803d', border: 'none' }}>
+                        💼 Zoho Campaigns
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('mailerlite')} style={{ background: '#f5f5f5', color: '#262626', border: 'none' }}>
+                        ✉️ Mailerlite
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Category C: Sheets & Universal */}
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: '6px' }}>Spreadsheets & Universal Merge</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('yamm')} style={{ background: '#ecfdf5', color: '#047857', border: 'none' }}>
+                        📊 YAMM / GMass / Sheets
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleExportTemplate('universal')} style={{ background: '#f3f4f6', color: '#4b5563', border: 'none' }}>
+                        🔤 Universal double-brace
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
