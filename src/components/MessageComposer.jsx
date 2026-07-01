@@ -3,6 +3,7 @@ import API_BASE from '../config'
 import { getAttachment } from '../utils/db'
 import { getRemainingDailyQuota, incrementDailyCount } from '../utils/limit'
 import { maskEmail, maskPhone } from '../utils/mask'
+import { logConnection } from '../utils/connections'
 
 export default function MessageComposer({ contacts, companyProfile, smtpConfig, addToast, variant = 'investor' }) {
   const isClient = variant === 'client'
@@ -311,6 +312,21 @@ Best,
           incrementDailyCount('email', batchSentCount)
         }
 
+        // Log to connections history
+        data.results.forEach(result => {
+          const originalContact = campaignContacts.find(c => c.__idx === result.__idx || c.email === result.email) || {}
+          logConnection({
+            type: 'email',
+            contactName: originalContact.name || 'Unknown',
+            contactValue: result.email,
+            company: originalContact.company || '',
+            status: result.status,
+            subject: campaignSubject,
+            message: campaignBody.replace(/<br>/g, '\n'), // convert HTML linebreaks back for preview
+            variant
+          })
+        })
+
         const nextSent = nextResults.filter(r => r.status === 'sent').length
         const nextFailed = nextResults.filter(r => r.status === 'failed').length
         const nextIndex = currentIndex + batch.length
@@ -570,10 +586,37 @@ Best,
     }
   }
 
-  const openWaLink = (link) => window.open(link, '_blank')
+  const openWaLink = (item) => {
+    if (!item || !item.link) return
+    window.open(item.link, '_blank')
+    logConnection({
+      type: 'whatsapp',
+      contactName: item.name,
+      contactValue: item.phone,
+      company: contacts.find(c => c.phone === item.phone || c.name === item.name)?.company || '',
+      status: 'sent',
+      subject: 'WhatsApp Message',
+      message: item.message,
+      variant
+    })
+  }
 
   const openAllWaLinks = () => {
-    waLinks.forEach((item, i) => setTimeout(() => window.open(item.link, '_blank'), i * 2000))
+    waLinks.forEach((item, i) => {
+      setTimeout(() => {
+        window.open(item.link, '_blank')
+        logConnection({
+          type: 'whatsapp',
+          contactName: item.name,
+          contactValue: item.phone,
+          company: contacts.find(c => c.phone === item.phone || c.name === item.name)?.company || '',
+          status: 'sent',
+          subject: 'WhatsApp Message',
+          message: item.message,
+          variant
+        })
+      }, i * 2000)
+    })
     addToast('Opening links one by one...', 'info')
   }
 
@@ -825,7 +868,7 @@ Best,
                       <div className="wa-phone">{maskPhone(item.phone)}</div>
                     </div>
                   </div>
-                  <button className="wa-send-btn" onClick={() => openWaLink(item.link)}>Open</button>
+                  <button className="wa-send-btn" onClick={() => openWaLink(item)}>Open</button>
                 </div>
               ))}
               {waLinks.length > 100 && (

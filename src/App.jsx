@@ -6,6 +6,7 @@ import ClientsPanel from './components/ClientsPanel'
 import InvestorsPanel from './components/InvestorsPanel'
 import CompanyProfile from './components/CompanyProfile'
 import CRMPanel from './components/CRMPanel'
+import ConnectionsPanel from './components/ConnectionsPanel'
 import ToastContainer from './components/ToastContainer'
 
 function App() {
@@ -43,8 +44,31 @@ function App() {
       }
     }
   })
-  const [clientContacts, setClientContacts] = useState([])
-  const [investorContacts, setInvestorContacts] = useState([])
+  const [clientContacts, setClientContacts] = useState(() => {
+    try {
+      const stored = localStorage.getItem('outreach_active_contacts_client')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+  const [investorContacts, setInvestorContacts] = useState(() => {
+    try {
+      const stored = localStorage.getItem('outreach_active_contacts_investor')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+
+  const saveClientContacts = (updated) => {
+    setClientContacts(updated)
+    localStorage.setItem('outreach_active_contacts_client', JSON.stringify(updated))
+  }
+  const saveInvestorContacts = (updated) => {
+    setInvestorContacts(updated)
+    localStorage.setItem('outreach_active_contacts_investor', JSON.stringify(updated))
+  }
   const [smtpConfig, setSmtpConfig] = useState(() => {
     try {
       const stored = localStorage.getItem('outreach_smtp_config')
@@ -144,7 +168,7 @@ function App() {
         return (
           <ClientsPanel
             contacts={clientContacts}
-            setContacts={setClientContacts}
+            setContacts={saveClientContacts}
             companyProfile={companyProfile}
             smtpConfig={smtpConfig}
             addToast={addToast}
@@ -155,11 +179,17 @@ function App() {
         return (
           <InvestorsPanel
             contacts={investorContacts}
-            setContacts={setInvestorContacts}
+            setContacts={saveInvestorContacts}
             companyProfile={companyProfile}
             smtpConfig={smtpConfig}
             addToast={addToast}
             onImportCRM={(list) => importLeads(list, 'investor')}
+          />
+        )
+      case 'connections':
+        return (
+          <ConnectionsPanel
+            addToast={addToast}
           />
         )
       case 'crm':

@@ -1,12 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ExcelUploader from './ExcelUploader'
 import MessageComposer from './MessageComposer'
 import { maskEmail, maskPhone } from '../utils/mask'
+import { checkAndPromoteQueuedContacts } from '../utils/limit'
 
 export default function ClientsPanel({ contacts, setContacts, companyProfile, smtpConfig, addToast, onImportCRM }) {
   const [headers, setHeaders] = useState([])
   const [activeTab, setActiveTab] = useState('upload')
   const [revealed, setRevealed] = useState({})
+
+  const variant = 'client'
+  const [queuedCount, setQueuedCount] = useState(0)
+
+  const updateQueueCount = () => {
+    try {
+      const stored = localStorage.getItem(`outreach_queued_contacts_${variant}`)
+      setQueuedCount(stored ? JSON.parse(stored).length : 0)
+    } catch {
+      setQueuedCount(0)
+    }
+  }
+
+  useEffect(() => {
+    checkAndPromoteQueuedContacts(variant, contacts, setContacts, addToast)
+    updateQueueCount()
+  }, [])
 
   const toggleReveal = (key) => {
     setRevealed(prev => ({ ...prev, [key]: !prev[key] }))
@@ -15,9 +33,45 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
   const handleContactsLoaded = (loadedContacts, loadedHeaders) => {
     setContacts(loadedContacts)
     setHeaders(loadedHeaders)
+    updateQueueCount()
     if (loadedContacts.length > 0) {
       addToast(`Got it — ${loadedContacts.length} contacts loaded`, 'success')
       setActiveTab('contacts')
+    }
+  }
+
+  const handleForceLoadQueue = () => {
+    try {
+      const queueKey = `outreach_queued_contacts_${variant}`
+      const rawQueue = localStorage.getItem(queueKey)
+      if (!rawQueue) return
+      
+      const queued = JSON.parse(rawQueue)
+      if (queued.length === 0) {
+        addToast('No contacts in the queue.', 'warning')
+        return
+      }
+
+      const toLoadCount = Math.min(queued.length, 500)
+      const toLoad = queued.slice(0, toLoadCount)
+      const remainingQueue = queued.slice(toLoadCount)
+
+      localStorage.setItem(queueKey, JSON.stringify(remainingQueue))
+      const updatedContacts = [...contacts, ...toLoad]
+      setContacts(updatedContacts)
+      
+      setQueuedCount(remainingQueue.length)
+      addToast(`Force loaded ${toLoadCount} contacts from queue!`, 'success')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleClearQueue = () => {
+    if (window.confirm("Are you sure you want to clear all queued contacts? They will be permanently removed from tomorrow's rollover queue.")) {
+      localStorage.removeItem(`outreach_queued_contacts_${variant}`)
+      setQueuedCount(0)
+      addToast('Queued contacts cleared.', 'success')
     }
   }
 
@@ -30,6 +84,35 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
         <h2>Clients</h2>
         <p>Reach out to potential clients about your services and what you can do for them.</p>
       </div>
+
+      {queuedCount > 0 && (
+        <div style={{
+          background: 'var(--orange-light)',
+          borderLeft: '4px solid var(--orange)',
+          padding: '16px',
+          borderRadius: '8px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.88rem'
+        }}>
+          <div>
+            <strong style={{ color: 'var(--orange-dark)' }}>⏳ {queuedCount.toLocaleString()} contacts waiting in queue for tomorrow.</strong>
+            <div style={{ fontSize: '0.78rem', color: 'var(--gray-500)', marginTop: '4px' }}>
+              These contacts will automatically load (up to 500/day) when a new day starts.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-sm btn-secondary" onClick={handleForceLoadQueue} style={{ background: 'var(--white)', border: '1px solid var(--gray-200)' }}>
+              ⚡ Load Next 500 Now
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={handleClearQueue} style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}>
+              ✕ Clear Queue
+            </button>
+          </div>
+        </div>
+      )}
 
       {contacts.length > 0 && (
         <div className="stats-grid">

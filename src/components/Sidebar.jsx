@@ -49,6 +49,15 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
           {leadsCount > 0 && <span className="nav-badge" style={{ background: 'var(--blue)' }}>{leadsCount.toLocaleString()}</span>}
         </button>
 
+        <button
+          className={`nav-item ${activePanel === 'connections' ? 'active dashboard' : ''}`}
+          style={activePanel === 'connections' ? { borderLeft: '4px solid var(--green)' } : {}}
+          onClick={() => setActivePanel('connections')}
+        >
+          <span className="nav-icon">🔗</span>
+          <span>Connections</span>
+        </button>
+
         <div className="sidebar-section-label">Setup</div>
         <button
           className={`nav-item ${activePanel === 'profile' ? 'active dashboard' : ''}`}

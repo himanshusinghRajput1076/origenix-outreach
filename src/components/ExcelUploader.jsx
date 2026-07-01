@@ -59,31 +59,45 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor', 
       })
       const data = await res.json()
       if (data.success) {
-        let loadedContacts = data.contacts
+        const loadedContacts = data.contacts
         const totalCount = loadedContacts.length
-
-        if (totalCount > 500) {
-          addToast?.(`Excel sheet contains ${totalCount} contacts. Automatically kept the first 500 contacts.`, 'warning')
-          loadedContacts = loadedContacts.slice(0, 500)
-        }
-
         const remainingQuota = getRemainingDailyQuota('upload')
+
+        let todayContacts = []
+        let queuedContacts = []
+
         if (remainingQuota <= 0) {
-          addToast?.('Daily upload quota exceeded. You have already uploaded 500 contacts today.', 'error')
-          setUploadedFile(null)
+          queuedContacts = loadedContacts
+          addToast?.(`Daily upload limit reached. Queued all ${totalCount} contacts for future days.`, 'warning')
+        } else if (totalCount > remainingQuota) {
+          todayContacts = loadedContacts.slice(0, remainingQuota)
+          queuedContacts = loadedContacts.slice(remainingQuota)
+          addToast?.(`Loaded first ${remainingQuota} contacts today. Queued remaining ${queuedContacts.length} contacts for tomorrow/future days.`, 'warning')
+        } else {
+          todayContacts = loadedContacts
+        }
+
+        // Save queued contacts to localStorage (append to existing queue)
+        if (queuedContacts.length > 0) {
+          const queueKey = `outreach_queued_contacts_${variant}`
+          let existingQueue = []
+          try {
+            const raw = localStorage.getItem(queueKey)
+            if (raw) existingQueue = JSON.parse(raw)
+          } catch (e) {
+            console.error(e)
+          }
+          const updatedQueue = [...existingQueue, ...queuedContacts]
+          localStorage.setItem(queueKey, JSON.stringify(updatedQueue))
+        }
+
+        const loadedCount = todayContacts.length
+        if (loadedCount > 0) {
+          incrementDailyCount('upload', loadedCount)
+          onContactsLoaded(todayContacts, data.headers)
+        } else {
           onContactsLoaded([], [])
-          setLoading(false)
-          return
         }
-
-        if (loadedContacts.length > remainingQuota) {
-          addToast?.(`Daily limit warning: Automatically loaded first ${remainingQuota} contacts to stay within your daily quota.`, 'warning')
-          loadedContacts = loadedContacts.slice(0, remainingQuota)
-        }
-
-        const loadedCount = loadedContacts.length
-        incrementDailyCount('upload', loadedCount)
-        onContactsLoaded(loadedContacts, data.headers)
       } else {
         addToast?.('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')
         setUploadedFile(null)

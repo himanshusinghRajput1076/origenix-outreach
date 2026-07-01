@@ -14,13 +14,22 @@
 function cleanPhoneNumber(raw, defaultCountryCode = "91") {
   if (!raw) return "";
 
-  // Strip common separators and whitespace
-  let cleaned = String(raw).replace(/[\s\-().+]/g, "");
+  // Split by common separators and take the first part
+  const parts = String(raw).split(/[,/;]|\band\b/i);
+  let firstPart = parts[0] ? parts[0].trim() : "";
+
+  // Strip common separators
+  let cleaned = firstPart.replace(/[\s\-().+]/g, "");
 
   // Remove any remaining non-digit characters
   cleaned = cleaned.replace(/\D/g, "");
 
   if (cleaned.length === 0) return "";
+
+  // Strip leading zero if present
+  if (cleaned.startsWith("0")) {
+    cleaned = cleaned.substring(1);
+  }
 
   // Heuristic: if the number is 10 digits (common local format), prepend country code
   if (cleaned.length === 10) {
@@ -32,11 +41,39 @@ function cleanPhoneNumber(raw, defaultCountryCode = "91") {
 
 /**
  * Replace {name}, {company}, and any other contact-field placeholders
- * inside a message template.
+ * inside a message template, supporting case-insensitivity and aliases.
  */
 function applyTemplate(template, contact) {
-  return template.replace(/\{(\w+)\}/g, (_match, key) => {
-    return contact[key.toLowerCase()] ?? "";
+  if (!contact) return template;
+  return template.replace(/\{([^{}]+)\}/g, (match, key) => {
+    const normalizedKey = key.trim().toLowerCase().replace(/[\s_-]/g, "");
+    
+    // Check direct keys first
+    for (const contactKey of Object.keys(contact)) {
+      if (contactKey.toLowerCase().replace(/[\s_-]/g, "") === normalizedKey) {
+        return contact[contactKey] ?? "";
+      }
+    }
+    
+    // Check common aliases
+    if (normalizedKey === "contactperson" || normalizedKey === "fullname" || normalizedKey === "contactname") {
+      return contact.name ?? "";
+    }
+    if (normalizedKey === "companyname") {
+      return contact.company ?? "";
+    }
+    if (normalizedKey === "phonenumber" || normalizedKey === "mobilenumber" || normalizedKey === "contactnumber" || normalizedKey === "whatsappnumber") {
+      return contact.phone ?? "";
+    }
+    if (normalizedKey === "emailaddress" || normalizedKey === "emailid") {
+      return contact.email ?? "";
+    }
+    
+    // Fallback: If it's a standard alphanumeric variable tag, replace with empty string
+    if (/^[a-zA-Z0-9\s_-]+$/.test(key)) {
+      return "";
+    }
+    return match;
   });
 }
 

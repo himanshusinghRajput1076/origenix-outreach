@@ -35,3 +35,37 @@ export function checkDailyLimit(type, increment) {
 export function getRemainingDailyQuota(type) {
   return Math.max(0, DAILY_LIMIT - getDailyCount(type));
 }
+
+export function checkAndPromoteQueuedContacts(variant, activeContacts, setContacts, addToast) {
+  try {
+    const queueKey = `outreach_queued_contacts_${variant}`;
+    const rawQueue = localStorage.getItem(queueKey);
+    if (!rawQueue) return;
+
+    const queued = JSON.parse(rawQueue);
+    if (queued.length === 0) return;
+
+    const remainingQuota = getRemainingDailyQuota('upload');
+    if (remainingQuota <= 0) return;
+
+    const toPromoteCount = Math.min(queued.length, remainingQuota);
+    const toPromote = queued.slice(0, toPromoteCount);
+    const remainingQueue = queued.slice(toPromoteCount);
+
+    // Save remaining queue
+    localStorage.setItem(queueKey, JSON.stringify(remainingQueue));
+
+    // Update active contacts
+    const updatedActive = [...activeContacts, ...toPromote];
+    setContacts(updatedActive);
+
+    // Increment count
+    incrementDailyCount('upload', toPromoteCount);
+
+    if (addToast) {
+      addToast(`Automatically loaded ${toPromoteCount} queued contacts for today! (${remainingQueue.length} remaining in queue)`, 'success');
+    }
+  } catch (err) {
+    console.error("Error promoting queued contacts:", err);
+  }
+}
