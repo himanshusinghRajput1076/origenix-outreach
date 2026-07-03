@@ -9,6 +9,7 @@ import CompanyProfile from './components/CompanyProfile'
 import CRMPanel from './components/CRMPanel'
 import ConnectionsPanel from './components/ConnectionsPanel'
 import ToastContainer from './components/ToastContainer'
+import { resetAllQuotas } from './utils/limit'
 
 function App() {
   const [activePanel, setActivePanel] = useState('dashboard')
@@ -43,9 +44,36 @@ function App() {
     }
   }
 
-  // Check SMTP connection on load and when SMTP config changes
+  // Check SMTP connection on load, when config changes, and run a heartbeat check every 45 seconds
   useEffect(() => {
     checkSmtpConnection()
+    const interval = setInterval(() => {
+      if (smtpConfig.email && smtpConfig.password) {
+        fetch(`${API_BASE}/test-smtp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromEmail: smtpConfig.email,
+            fromPassword: smtpConfig.password,
+            smtpHost: smtpConfig.host,
+            smtpPort: smtpConfig.port
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setSmtpStatus('connected')
+          } else {
+            setSmtpStatus('error')
+          }
+        })
+        .catch(() => {
+          setSmtpStatus('error')
+        })
+      }
+    }, 45000)
+
+    return () => clearInterval(interval)
   }, [smtpConfig])
 
   // Global reset handler
@@ -58,6 +86,16 @@ function App() {
           window.location.reload()
         }, 1500)
       }
+    }
+  }
+
+  const handleResetQuotas = () => {
+    if (window.confirm("🔄 Reset daily quotas? This will set your daily sent/upload counts back to 0.")) {
+      resetAllQuotas()
+      addToast('Daily quotas reset successfully!', 'success')
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     }
   }
 
@@ -214,6 +252,7 @@ function App() {
             smtpStatus={smtpStatus}
             onCheckSmtp={checkSmtpConnection}
             onResetApp={handleResetApplication}
+            onResetQuotas={handleResetQuotas}
             addToast={addToast}
             onNavigate={setActivePanel}
           />
@@ -246,6 +285,7 @@ function App() {
         return (
           <ConnectionsPanel
             addToast={addToast}
+            onResetQuotas={handleResetQuotas}
           />
         )
       case 'crm':
@@ -253,6 +293,7 @@ function App() {
           <CRMPanel
             leads={leads}
             onSaveLeads={saveLeads}
+            onImportLeads={importLeads}
             addToast={addToast}
           />
         )
@@ -279,6 +320,7 @@ function App() {
             smtpStatus={smtpStatus}
             onCheckSmtp={checkSmtpConnection}
             onResetApp={handleResetApplication}
+            onResetQuotas={handleResetQuotas}
             addToast={addToast} 
             onNavigate={setActivePanel} 
           />

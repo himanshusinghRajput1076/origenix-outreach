@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { maskEmail, maskPhone } from '../utils/mask'
+import { parseExcelClient } from '../utils/excelParser'
 
-export default function CRMPanel({ leads, onSaveLeads, addToast }) {
+export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [viewMode, setViewMode] = useState('pipeline') // 'pipeline' or 'list'
@@ -25,6 +26,9 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
   // Modal State
   const [selectedLead, setSelectedLead] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadType, setUploadType] = useState('client') // 'client' or 'investor'
+  const [uploading, setUploading] = useState(false)
   
   // Note Form State
   const [newNote, setNewNote] = useState('')
@@ -188,6 +192,50 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
     }
   }
 
+  // Reset CRM database
+  const handleResetCRM = () => {
+    if (window.confirm("⚠️ Are you sure you want to RESET the entire CRM board?\n\nThis will permanently delete all leads, stages, notes, and history. This action cannot be undone.")) {
+      onSaveLeads([])
+      addToast('CRM board reset successfully.', 'success')
+    }
+  }
+
+  // Handle uploading Excel file directly to CRM
+  const handleUploadExcelLeads = (file) => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    if (!['xlsx', 'xls'].includes(ext)) {
+      addToast('Please upload an Excel file (.xlsx or .xls)', 'error')
+      return
+    }
+
+    setUploading(true)
+    const reader = new FileReader()
+
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target.result
+        const data = await parseExcelClient(arrayBuffer)
+        if (data.contacts && data.contacts.length > 0) {
+          onImportLeads(data.contacts, uploadType)
+          setShowUploadModal(false)
+        } else {
+          addToast('No contacts found in the Excel sheet.', 'warning')
+        }
+      } catch (err) {
+        addToast('Failed to parse Excel: ' + (err.message || 'Unknown error'), 'error')
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    reader.onerror = () => {
+      addToast('Failed to read file contents.', 'error')
+      setUploading(false)
+    }
+
+    reader.readAsArrayBuffer(file)
+  }
+
   // Export CRM database to CSV
   const handleExportCSV = () => {
     if (leads.length === 0) {
@@ -232,7 +280,13 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
         </div>
         <div className="btn-group">
           <button className="btn btn-sm btn-investor" onClick={() => setShowAddModal(true)}>+ Add Lead</button>
+          <button className="btn btn-sm btn-client" onClick={() => setShowUploadModal(true)}>📤 Upload Excel</button>
           <button className="btn btn-sm btn-secondary" onClick={handleExportCSV}>Export CSV</button>
+          {leads.length > 0 && (
+            <button className="btn btn-sm" onClick={handleResetCRM} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca' }}>
+              🗑️ Reset CRM Board
+            </button>
+          )}
         </div>
       </div>
 
@@ -717,7 +771,82 @@ export default function CRMPanel({ leads, onSaveLeads, addToast }) {
                 <button type="submit" className="btn btn-sm btn-client" style={{ width: '100%' }}>Add Note</button>
               </form>
             </div>
+          </div>
+        </div>
+      )}
 
+      {showUploadModal && (
+        <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
+          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>📤 Upload Excel to CRM</h3>
+              <button className="modal-close" onClick={() => setShowUploadModal(false)}>×</button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '16px' }}>
+              Import leads directly onto the CRM Kanban pipeline board. Any duplicate leads based on email address will be skipped.
+            </p>
+            
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Select Lead Type</label>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.88rem' }}>
+                  <input 
+                    type="radio" 
+                    name="crmUploadType" 
+                    value="client" 
+                    checked={uploadType === 'client'} 
+                    onChange={() => setUploadType('client')} 
+                  />
+                  🤝 Client Lead
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.88rem' }}>
+                  <input 
+                    type="radio" 
+                    name="crmUploadType" 
+                    value="investor" 
+                    checked={uploadType === 'investor'} 
+                    onChange={() => setUploadType('investor')} 
+                  />
+                  💼 Investor Lead
+                </label>
+              </div>
+            </div>
+
+            <div 
+              style={{
+                border: '2px dashed var(--gray-300)',
+                borderRadius: '8px',
+                padding: '30px 20px',
+                textAlign: 'center',
+                background: 'var(--gray-50)',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                marginBottom: '16px'
+              }}
+              onClick={() => document.getElementById('crm-excel-file').click()}
+            >
+              <input 
+                id="crm-excel-file"
+                type="file" 
+                accept=".xlsx,.xls" 
+                style={{ display: 'none' }} 
+                onChange={e => {
+                  const file = e.target.files[0]
+                  if (file) handleUploadExcelLeads(file)
+                }} 
+              />
+              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>{uploading ? '⏳' : '📊'}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--gray-700)' }}>
+                {uploading ? 'Processing file...' : 'Click to browse or drop Excel file here'}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--gray-400)', marginTop: '4px' }}>
+                Supports .xlsx and .xls formats
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button className="btn btn-sm btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

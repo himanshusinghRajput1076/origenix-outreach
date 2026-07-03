@@ -75,6 +75,14 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
     }
   }
 
+  const handleClearContacts = () => {
+    if (window.confirm("⚠️ Clear all loaded Client contacts?\n\nThis will remove all client contacts from this panel. (Active CRM leads will remain).")) {
+      setContacts([])
+      setHeaders([])
+      addToast('Client list cleared successfully.', 'success')
+    }
+  }
+
   const emailCount = contacts.filter(c => c.email).length
   const phoneCount = contacts.filter(c => c.phone).length
 
@@ -85,9 +93,16 @@ export default function ClientsPanel({ contacts, setContacts, companyProfile, sm
           <h2>Clients</h2>
           <p>Reach out to potential clients about your services and what you can do for them.</p>
         </div>
-        <button className="btn btn-sm" onClick={onResetApp} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', fontWeight: 600 }}>
-          🚨 Reset App Data
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {contacts.length > 0 && (
+            <button className="btn btn-sm" onClick={handleClearContacts} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', fontWeight: 600 }}>
+              🗑️ Clear Client List
+            </button>
+          )}
+          <button className="btn btn-sm btn-secondary" onClick={onResetApp} style={{ padding: '6px 12px', fontWeight: 600 }}>
+            🚨 Reset App
+          </button>
+        </div>
       </div>
 
       {queuedCount > 0 && (

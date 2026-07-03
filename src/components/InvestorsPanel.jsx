@@ -75,6 +75,14 @@ export default function InvestorsPanel({ contacts, setContacts, companyProfile, 
     }
   }
 
+  const handleClearContacts = () => {
+    if (window.confirm("⚠️ Clear all loaded Investor contacts?\n\nThis will remove all investor contacts from this panel. (Active CRM leads will remain).")) {
+      setContacts([])
+      setHeaders([])
+      addToast('Investor list cleared successfully.', 'success')
+    }
+  }
+
   const emailCount = contacts.filter(c => c.email).length
   const phoneCount = contacts.filter(c => c.phone).length
 
@@ -85,9 +93,16 @@ export default function InvestorsPanel({ contacts, setContacts, companyProfile, 
           <h2>Investors</h2>
           <p>Send your pitch to potential investors — request funding, share your deck, and start conversations.</p>
         </div>
-        <button className="btn btn-sm" onClick={onResetApp} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', fontWeight: 600 }}>
-          🚨 Reset App Data
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {contacts.length > 0 && (
+            <button className="btn btn-sm" onClick={handleClearContacts} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px 12px', fontWeight: 600 }}>
+              🗑️ Clear Investor List
+            </button>
+          )}
+          <button className="btn btn-sm btn-secondary" onClick={onResetApp} style={{ padding: '6px 12px', fontWeight: 600 }}>
+            🚨 Reset App
+          </button>
+        </div>
       </div>
 
       {queuedCount > 0 && (

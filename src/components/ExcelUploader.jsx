@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
 import { incrementDailyCount, getRemainingDailyQuota } from '../utils/limit'
+import { parseExcelClient } from '../utils/excelParser'
 
 export default function ExcelUploader({ onContactsLoaded, variant = 'investor', addToast }) {
   const [dragging, setDragging] = useState(false)
@@ -50,63 +51,71 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor', 
     setLoading(true)
     setUploadedFile({ name: file.name, size: file.size })
 
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch(`${API_BASE}/upload-excel`, {
-        method: 'POST',
-        body: formData
-      })
-      const data = await res.json()
-      if (data.success) {
-        const loadedContacts = data.contacts
-        const totalCount = loadedContacts.length
-        const remainingQuota = getRemainingDailyQuota('upload')
+    const reader = new FileReader()
 
-        let todayContacts = []
-        let queuedContacts = []
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target.result
+        const data = await parseExcelClient(arrayBuffer)
+        if (data.contacts && data.contacts.length > 0) {
+          const loadedContacts = data.contacts
+          const totalCount = loadedContacts.length
+          const remainingQuota = getRemainingDailyQuota('upload')
 
-        if (remainingQuota <= 0) {
-          queuedContacts = loadedContacts
-          addToast?.(`Daily upload limit reached. Queued all ${totalCount} contacts for future days.`, 'warning')
-        } else if (totalCount > remainingQuota) {
-          todayContacts = loadedContacts.slice(0, remainingQuota)
-          queuedContacts = loadedContacts.slice(remainingQuota)
-          addToast?.(`Loaded first ${remainingQuota} contacts today. Queued remaining ${queuedContacts.length} contacts for tomorrow/future days.`, 'warning')
-        } else {
-          todayContacts = loadedContacts
-        }
+          let todayContacts = []
+          let queuedContacts = []
 
-        // Save queued contacts to localStorage (append to existing queue)
-        if (queuedContacts.length > 0) {
-          const queueKey = `outreach_queued_contacts_${variant}`
-          let existingQueue = []
-          try {
-            const raw = localStorage.getItem(queueKey)
-            if (raw) existingQueue = JSON.parse(raw)
-          } catch (e) {
-            console.error(e)
+          if (remainingQuota <= 0) {
+            queuedContacts = loadedContacts
+            addToast?.(`Daily upload limit reached. Queued all ${totalCount} contacts for future days.`, 'warning')
+          } else if (totalCount > remainingQuota) {
+            todayContacts = loadedContacts.slice(0, remainingQuota)
+            queuedContacts = loadedContacts.slice(remainingQuota)
+            addToast?.(`Loaded first ${remainingQuota} contacts today. Queued remaining ${queuedContacts.length} contacts for tomorrow/future days.`, 'warning')
+          } else {
+            todayContacts = loadedContacts
           }
-          const updatedQueue = [...existingQueue, ...queuedContacts]
-          localStorage.setItem(queueKey, JSON.stringify(updatedQueue))
-        }
 
-        const loadedCount = todayContacts.length
-        if (loadedCount > 0) {
-          incrementDailyCount('upload', loadedCount)
-          onContactsLoaded(todayContacts, data.headers)
+          // Save queued contacts to localStorage (append to existing queue)
+          if (queuedContacts.length > 0) {
+            const queueKey = `outreach_queued_contacts_${variant}`
+            let existingQueue = []
+            try {
+              const raw = localStorage.getItem(queueKey)
+              if (raw) existingQueue = JSON.parse(raw)
+            } catch (err) {
+              console.error(err)
+            }
+            const updatedQueue = [...existingQueue, ...queuedContacts]
+            localStorage.setItem(queueKey, JSON.stringify(updatedQueue))
+          }
+
+          const loadedCount = todayContacts.length
+          if (loadedCount > 0) {
+            incrementDailyCount('upload', loadedCount)
+            onContactsLoaded(todayContacts, data.headers)
+          } else {
+            onContactsLoaded([], [])
+          }
         } else {
-          onContactsLoaded([], [])
+          addToast?.('No contacts found in Excel sheet.', 'warning')
+          setUploadedFile(null)
         }
-      } else {
-        addToast?.('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')
+      } catch (err) {
+        addToast?.('Failed to parse Excel: ' + (err.message || 'Unknown error'), 'error')
         setUploadedFile(null)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      addToast?.('Server not running. Please start the backend server (cd server && npm start)', 'error')
-      setUploadedFile(null)
     }
-    setLoading(false)
+
+    reader.onerror = () => {
+      addToast?.('Failed to read file contents.', 'error')
+      setUploadedFile(null)
+      setLoading(false)
+    }
+
+    reader.readAsArrayBuffer(file)
   }
 
   const removeFile = () => {

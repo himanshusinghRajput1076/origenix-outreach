@@ -202,6 +202,12 @@ app.post("/api/test-smtp", async (req, res) => {
         user: fromEmail,
         pass: fromPassword,
       },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
     });
 
     await transporter.verify();

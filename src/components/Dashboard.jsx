@@ -11,6 +11,7 @@ export default function Dashboard({
   smtpStatus = 'unchecked', 
   onCheckSmtp, 
   onResetApp, 
+  onResetQuotas,
   addToast, 
   onNavigate 
 }) {
@@ -96,6 +97,9 @@ export default function Dashboard({
             </button>
           </div>
           <div style={{ borderLeft: '1px solid var(--gray-200)', height: '16px', margin: '0 4px' }} />
+          <button className="btn btn-sm" onClick={onResetQuotas} style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600 }}>
+            🔄 Reset Quotas
+          </button>
           <button className="btn btn-sm" onClick={onResetApp} style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600 }}>
             🚨 Reset Application
           </button>
@@ -312,6 +316,43 @@ export default function Dashboard({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Leads CRM Pipeline card */}
+      <div className="card" style={{ marginTop: '16px' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 className="card-title">📊 Leads CRM Pipeline</h3>
+          <span className="tag" style={{ background: 'var(--blue-light)', color: 'var(--blue)', fontWeight: 600 }}>{leads.length.toLocaleString()} Active Leads</span>
+        </div>
+        <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: '16px' }}>
+          Track deal/investment stages, log phone/chat timelines, set follow-up tasks, and view contact statistics.
+        </p>
+        <div className="btn-group" style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={() => onNavigate('crm')}>
+            Open CRM Board →
+          </button>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div className="card" style={{ marginTop: '16px' }}>
+        <div className="card-header">
+          <h3 className="card-title">How it works</h3>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ padding: '16px', background: 'var(--gray-50)', borderRadius: '8px' }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px', color: 'var(--gray-700)' }}>Step 1</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>Go to Company & Settings and fill in your details and email credentials.</p>
+          </div>
+          <div style={{ padding: '16px', background: 'var(--gray-50)', borderRadius: '8px' }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px', color: 'var(--gray-700)' }}>Step 2</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>Upload your Excel file with names, emails, and phone numbers.</p>
+          </div>
+          <div style={{ padding: '16px', background: 'var(--gray-50)', borderRadius: '8px' }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px', color: 'var(--gray-700)' }}>Step 3</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>Pick a template, tweak it if you want, and hit send.</p>
+          </div>
+        </div>
       </div>
     </div>
   )
