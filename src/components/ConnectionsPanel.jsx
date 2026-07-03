@@ -3,7 +3,7 @@ import { getConnections, clearConnections } from '../utils/connections'
 import { getDailyCount } from '../utils/limit'
 import { maskEmail, maskPhone } from '../utils/mask'
 
-export default function ConnectionsPanel({ addToast }) {
+export default function ConnectionsPanel({ addToast, onResetQuotas }) {
   const [logs, setLogs] = useState(() => getConnections())
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -66,11 +66,16 @@ export default function ConnectionsPanel({ addToast }) {
           <h2>Outreach Connections</h2>
           <p>View, search, and track all successful and failed outreach logs.</p>
         </div>
-        {logs.length > 0 && (
-          <button className="btn btn-secondary btn-sm" onClick={handleClearLogs} style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}>
-            🗑️ Clear History
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary btn-sm" onClick={onResetQuotas} style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+            🔄 Reset Quotas
           </button>
-        )}
+          {logs.length > 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={handleClearLogs} style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}>
+              🗑️ Clear History
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats row */}
