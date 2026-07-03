@@ -776,8 +776,8 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
       )}
 
       {showUploadModal && (
-        <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
-          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+        <div className="modal-backdrop" onClick={() => setShowUploadModal(false)}>
+          <div className="modal-content cyber-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
               <h3>📤 Upload Excel to CRM</h3>
               <button className="modal-close" onClick={() => setShowUploadModal(false)}>×</button>
