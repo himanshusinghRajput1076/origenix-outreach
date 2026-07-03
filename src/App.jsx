@@ -10,94 +10,13 @@ import CRMPanel from './components/CRMPanel'
 import ConnectionsPanel from './components/ConnectionsPanel'
 import ToastContainer from './components/ToastContainer'
 import { resetAllQuotas } from './utils/limit'
+import { clearAllAttachments } from './utils/db'
 
 function App() {
+  // ── All state declarations FIRST ──────────────────────────────────────
   const [activePanel, setActivePanel] = useState('dashboard')
   const [toasts, setToasts] = useState([])
   const [smtpStatus, setSmtpStatus] = useState('unchecked') // 'unchecked', 'checking', 'connected', 'error'
-
-  const checkSmtpConnection = async (config = smtpConfig) => {
-    if (!config.email || !config.password) {
-      setSmtpStatus('disconnected')
-      return
-    }
-    setSmtpStatus('checking')
-    try {
-      const res = await fetch(`${API_BASE}/test-smtp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromEmail: config.email,
-          fromPassword: config.password,
-          smtpHost: config.host,
-          smtpPort: config.port
-        })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setSmtpStatus('connected')
-      } else {
-        setSmtpStatus('error')
-      }
-    } catch {
-      setSmtpStatus('error')
-    }
-  }
-
-  // Check SMTP connection on load, when config changes, and run a heartbeat check every 45 seconds
-  useEffect(() => {
-    checkSmtpConnection()
-    const interval = setInterval(() => {
-      if (smtpConfig.email && smtpConfig.password) {
-        fetch(`${API_BASE}/test-smtp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fromEmail: smtpConfig.email,
-            fromPassword: smtpConfig.password,
-            smtpHost: smtpConfig.host,
-            smtpPort: smtpConfig.port
-          })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            setSmtpStatus('connected')
-          } else {
-            setSmtpStatus('error')
-          }
-        })
-        .catch(() => {
-          setSmtpStatus('error')
-        })
-      }
-    }, 45000)
-
-    return () => clearInterval(interval)
-  }, [smtpConfig])
-
-  // Global reset handler
-  const handleResetApplication = () => {
-    if (window.confirm("⚠️ DANGER ZONE: Are you sure you want to RESET the entire application?\n\nThis will permanently delete all contacts, settings, leads, and outreach logs.")) {
-      if (window.confirm("PROCEED WITH RESET? All data will be lost forever. Click OK to wipe everything.")) {
-        localStorage.clear()
-        addToast('Application reset successfully! Wiping state...', 'success')
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
-      }
-    }
-  }
-
-  const handleResetQuotas = () => {
-    if (window.confirm("🔄 Reset daily quotas? This will set your daily sent/upload counts back to 0.")) {
-      resetAllQuotas()
-      addToast('Daily quotas reset successfully!', 'success')
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
-    }
-  }
 
   const [companyProfile, setCompanyProfile] = useState(() => {
     try {
@@ -131,6 +50,7 @@ function App() {
       }
     }
   })
+
   const [clientContacts, setClientContacts] = useState(() => {
     try {
       const stored = localStorage.getItem('outreach_active_contacts_client')
@@ -139,6 +59,7 @@ function App() {
       return []
     }
   })
+
   const [investorContacts, setInvestorContacts] = useState(() => {
     try {
       const stored = localStorage.getItem('outreach_active_contacts_investor')
@@ -148,14 +69,6 @@ function App() {
     }
   })
 
-  const saveClientContacts = (updated) => {
-    setClientContacts(updated)
-    localStorage.setItem('outreach_active_contacts_client', JSON.stringify(updated))
-  }
-  const saveInvestorContacts = (updated) => {
-    setInvestorContacts(updated)
-    localStorage.setItem('outreach_active_contacts_investor', JSON.stringify(updated))
-  }
   const [smtpConfig, setSmtpConfig] = useState(() => {
     try {
       const stored = localStorage.getItem('outreach_smtp_config')
@@ -185,10 +98,7 @@ function App() {
     }
   })
 
-  const saveLeads = (updatedLeads) => {
-    setLeads(updatedLeads)
-    localStorage.setItem('outreach_leads', JSON.stringify(updatedLeads))
-  }
+  // ── Helper functions ──────────────────────────────────────────────────
 
   const addToast = (message, type = 'info') => {
     const id = Date.now()
@@ -196,6 +106,88 @@ function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 4000)
+  }
+
+  const saveClientContacts = (updated) => {
+    setClientContacts(updated)
+    localStorage.setItem('outreach_active_contacts_client', JSON.stringify(updated))
+  }
+
+  const saveInvestorContacts = (updated) => {
+    setInvestorContacts(updated)
+    localStorage.setItem('outreach_active_contacts_investor', JSON.stringify(updated))
+  }
+
+  const saveLeads = (updatedLeads) => {
+    setLeads(updatedLeads)
+    localStorage.setItem('outreach_leads', JSON.stringify(updatedLeads))
+  }
+
+  const checkSmtpConnection = async (config) => {
+    // Use the passed config or fall back to current smtpConfig state
+    const cfg = config || smtpConfig
+    if (!cfg || !cfg.email || !cfg.password) {
+      setSmtpStatus('disconnected')
+      return
+    }
+    setSmtpStatus('checking')
+    try {
+      const res = await fetch(`${API_BASE}/test-smtp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromEmail: cfg.email,
+          fromPassword: cfg.password,
+          smtpHost: cfg.host,
+          smtpPort: cfg.port
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSmtpStatus('connected')
+      } else {
+        setSmtpStatus('error')
+      }
+    } catch {
+      setSmtpStatus('error')
+    }
+  }
+
+  // Global reset handler
+  const handleResetApplication = async () => {
+    if (window.confirm("⚠️ DANGER ZONE: Are you sure you want to RESET the entire application?\n\nThis will permanently delete all contacts, settings, leads, and outreach logs.")) {
+      if (window.confirm("PROCEED WITH RESET? All data will be lost forever. Click OK to wipe everything.")) {
+        try {
+          await clearAllAttachments()
+        } catch (err) {
+          console.error("Failed to clear attachments database:", err)
+        }
+        
+        try {
+          await fetch(`${API_BASE}/reset-server`, { method: 'POST' })
+        } catch (err) {
+          console.error("Failed to reset backend server data:", err)
+        }
+
+        localStorage.clear()
+        addToast('Application reset successfully! Wiping state...', 'success')
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      }
+    }
+  }
+
+
+
+  const handleResetQuotas = () => {
+    if (window.confirm("🔄 Reset daily quotas? This will set your daily sent/upload counts back to 0.")) {
+      resetAllQuotas()
+      addToast('Daily quotas reset successfully!', 'success')
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    }
   }
 
   const importLeads = (contactsList, type) => {
@@ -239,6 +231,42 @@ function App() {
       addToast(`All ${skippedCount.toLocaleString()} contacts were already in the CRM.`, 'warning')
     }
   }
+
+  // ── Effects ───────────────────────────────────────────────────────────
+
+  // Check SMTP connection on load, when config changes, and run a heartbeat check every 45 seconds
+  useEffect(() => {
+    checkSmtpConnection(smtpConfig)
+    const interval = setInterval(() => {
+      if (smtpConfig.email && smtpConfig.password) {
+        fetch(`${API_BASE}/test-smtp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromEmail: smtpConfig.email,
+            fromPassword: smtpConfig.password,
+            smtpHost: smtpConfig.host,
+            smtpPort: smtpConfig.port
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setSmtpStatus('connected')
+          } else {
+            setSmtpStatus('error')
+          }
+        })
+        .catch(() => {
+          setSmtpStatus('error')
+        })
+      }
+    }, 45000)
+
+    return () => clearInterval(interval)
+  }, [smtpConfig])
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   const renderPanel = () => {
     switch (activePanel) {
@@ -350,4 +378,3 @@ function App() {
 }
 
 export default App
-

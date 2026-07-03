@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import API_BASE from '../config'
 import { incrementDailyCount, getRemainingDailyQuota } from '../utils/limit'
-import { parseExcelClient } from '../utils/excelParser'
 
 export default function ExcelUploader({ onContactsLoaded, variant = 'investor', addToast }) {
   const [dragging, setDragging] = useState(false)
@@ -51,71 +50,63 @@ export default function ExcelUploader({ onContactsLoaded, variant = 'investor', 
     setLoading(true)
     setUploadedFile({ name: file.name, size: file.size })
 
-    const reader = new FileReader()
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${API_BASE}/upload-excel`, {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
+        const loadedContacts = data.contacts
+        const totalCount = loadedContacts.length
+        const remainingQuota = getRemainingDailyQuota('upload')
 
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target.result
-        const data = await parseExcelClient(arrayBuffer)
-        if (data.contacts && data.contacts.length > 0) {
-          const loadedContacts = data.contacts
-          const totalCount = loadedContacts.length
-          const remainingQuota = getRemainingDailyQuota('upload')
+        let todayContacts = []
+        let queuedContacts = []
 
-          let todayContacts = []
-          let queuedContacts = []
-
-          if (remainingQuota <= 0) {
-            queuedContacts = loadedContacts
-            addToast?.(`Daily upload limit reached. Queued all ${totalCount} contacts for future days.`, 'warning')
-          } else if (totalCount > remainingQuota) {
-            todayContacts = loadedContacts.slice(0, remainingQuota)
-            queuedContacts = loadedContacts.slice(remainingQuota)
-            addToast?.(`Loaded first ${remainingQuota} contacts today. Queued remaining ${queuedContacts.length} contacts for tomorrow/future days.`, 'warning')
-          } else {
-            todayContacts = loadedContacts
-          }
-
-          // Save queued contacts to localStorage (append to existing queue)
-          if (queuedContacts.length > 0) {
-            const queueKey = `outreach_queued_contacts_${variant}`
-            let existingQueue = []
-            try {
-              const raw = localStorage.getItem(queueKey)
-              if (raw) existingQueue = JSON.parse(raw)
-            } catch (err) {
-              console.error(err)
-            }
-            const updatedQueue = [...existingQueue, ...queuedContacts]
-            localStorage.setItem(queueKey, JSON.stringify(updatedQueue))
-          }
-
-          const loadedCount = todayContacts.length
-          if (loadedCount > 0) {
-            incrementDailyCount('upload', loadedCount)
-            onContactsLoaded(todayContacts, data.headers)
-          } else {
-            onContactsLoaded([], [])
-          }
+        if (remainingQuota <= 0) {
+          queuedContacts = loadedContacts
+          addToast?.(`Daily upload limit reached. Queued all ${totalCount} contacts for future days.`, 'warning')
+        } else if (totalCount > remainingQuota) {
+          todayContacts = loadedContacts.slice(0, remainingQuota)
+          queuedContacts = loadedContacts.slice(remainingQuota)
+          addToast?.(`Loaded first ${remainingQuota} contacts today. Queued remaining ${queuedContacts.length} contacts for tomorrow/future days.`, 'warning')
         } else {
-          addToast?.('No contacts found in Excel sheet.', 'warning')
-          setUploadedFile(null)
+          todayContacts = loadedContacts
         }
-      } catch (err) {
-        addToast?.('Failed to parse Excel: ' + (err.message || 'Unknown error'), 'error')
+
+        // Save queued contacts to localStorage (append to existing queue)
+        if (queuedContacts.length > 0) {
+          const queueKey = `outreach_queued_contacts_${variant}`
+          let existingQueue = []
+          try {
+            const raw = localStorage.getItem(queueKey)
+            if (raw) existingQueue = JSON.parse(raw)
+          } catch (e) {
+            console.error(e)
+          }
+          const updatedQueue = [...existingQueue, ...queuedContacts]
+          localStorage.setItem(queueKey, JSON.stringify(updatedQueue))
+        }
+
+        const loadedCount = todayContacts.length
+        if (loadedCount > 0) {
+          incrementDailyCount('upload', loadedCount)
+          onContactsLoaded(todayContacts, data.headers)
+        } else {
+          onContactsLoaded([], [])
+        }
+      } else {
+        addToast?.('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')
         setUploadedFile(null)
-      } finally {
-        setLoading(false)
       }
-    }
-
-    reader.onerror = () => {
-      addToast?.('Failed to read file contents.', 'error')
+    } catch (err) {
+      addToast?.('Failed to parse Excel file. Make sure your server is online.', 'error')
       setUploadedFile(null)
-      setLoading(false)
     }
-
-    reader.readAsArrayBuffer(file)
+    setLoading(false)
   }
 
   const removeFile = () => {

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { maskEmail, maskPhone } from '../utils/mask'
-import { parseExcelClient } from '../utils/excelParser'
+import API_BASE from '../config'
 
 export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }) {
   const [search, setSearch] = useState('')
@@ -201,7 +201,7 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
   }
 
   // Handle uploading Excel file directly to CRM
-  const handleUploadExcelLeads = (file) => {
+  const handleUploadExcelLeads = async (file) => {
     const ext = file.name.split('.').pop().toLowerCase()
     if (!['xlsx', 'xls'].includes(ext)) {
       addToast('Please upload an Excel file (.xlsx or .xls)', 'error')
@@ -209,31 +209,29 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
     }
 
     setUploading(true)
-    const reader = new FileReader()
-
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target.result
-        const data = await parseExcelClient(arrayBuffer)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${API_BASE}/upload-excel`, {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
         if (data.contacts && data.contacts.length > 0) {
           onImportLeads(data.contacts, uploadType)
           setShowUploadModal(false)
         } else {
           addToast('No contacts found in the Excel sheet.', 'warning')
         }
-      } catch (err) {
-        addToast('Failed to parse Excel: ' + (err.message || 'Unknown error'), 'error')
-      } finally {
-        setUploading(false)
+      } else {
+        addToast('Failed to parse Excel: ' + (data.error || 'Unknown error'), 'error')
       }
-    }
-
-    reader.onerror = () => {
-      addToast('Failed to read file contents.', 'error')
+    } catch (err) {
+      addToast('Failed to parse Excel file. Make sure your server is online.', 'error')
+    } finally {
       setUploading(false)
     }
-
-    reader.readAsArrayBuffer(file)
   }
 
   // Export CRM database to CSV

@@ -180,6 +180,41 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// ---------- POST /api/reset-server ----------
+app.post("/api/reset-server", (req, res) => {
+  console.log("[Route] POST /api/reset-server");
+  try {
+    // 1. Reset jobs map
+    jobs.clear();
+    
+    // 2. Delete jobs.json if it exists
+    if (fs.existsSync(JOBS_FILE)) {
+      fs.unlinkSync(JOBS_FILE);
+    }
+    
+    // 3. Delete files in uploads directory
+    if (fs.existsSync(UPLOADS_DIR)) {
+      const files = fs.readdirSync(UPLOADS_DIR);
+      for (const file of files) {
+        if (file !== "." && file !== "..") {
+          const filePath = path.join(UPLOADS_DIR, file);
+          try {
+            fs.unlinkSync(filePath);
+          } catch (e) {
+            console.error(`Error deleting file ${file}:`, e.message);
+          }
+        }
+      }
+    }
+    
+    return res.json({ success: true, message: "Backend data reset successfully!" });
+  } catch (err) {
+    console.error("[Route] reset-server error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ---------- POST /api/test-smtp ----------
 app.post("/api/test-smtp", async (req, res) => {
   console.log("[Route] POST /api/test-smtp");
