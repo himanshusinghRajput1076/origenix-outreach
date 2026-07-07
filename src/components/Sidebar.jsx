@@ -9,6 +9,8 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
         return { label: 'Connecting...', color: '#f59e0b', bg: '#fef3c7' }
       case 'disconnected':
         return { label: 'SMTP Not Setup', color: '#94a3b8', bg: '#f1f5f9' }
+      case 'sleeping':
+        return { label: 'Server Waking...', color: '#a855f7', bg: '#f3e8ff' }
       default:
         return { label: 'SMTP Status', color: '#94a3b8', bg: '#f1f5f9' }
     }
@@ -77,17 +79,28 @@ export default function Sidebar({ activePanel, setActivePanel, clientCount, inve
 
         <div className="sidebar-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Setup</span>
-          <span style={{ 
-            fontSize: '0.68rem', 
-            fontWeight: 600, 
-            padding: '2px 6px', 
-            borderRadius: '4px', 
-            background: smtpBadge.bg, 
-            color: smtpBadge.color,
-            textTransform: 'uppercase'
-          }}>
-            {smtpBadge.label}
-          </span>
+          <button 
+            type="button"
+            onClick={() => setActivePanel('profile')}
+            style={{ 
+              fontSize: '0.68rem', 
+              fontWeight: 600, 
+              padding: '2px 6px', 
+              borderRadius: '4px', 
+              background: smtpBadge.bg, 
+              color: smtpBadge.color,
+              textTransform: 'uppercase',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '2px'
+            }}
+            title="Go to settings to configure SMTP"
+          >
+            {smtpBadge.label} ⚙️
+          </button>
         </div>
         <button
           className={`nav-item ${activePanel === 'profile' ? 'active dashboard' : ''}`}

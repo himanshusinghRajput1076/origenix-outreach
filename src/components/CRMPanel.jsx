@@ -42,7 +42,13 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
     website: '',
     type: 'client',
     status: 'new',
-    note: ''
+    note: '',
+    linkedin: '',
+    telegram: '',
+    instagram: '',
+    wellfound: '',
+    indiehackers: '',
+    producthunt: ''
   })
 
   const statuses = [
@@ -129,7 +135,13 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
         ? [{ date: new Date().toISOString(), text: newLeadForm.note.trim() }] 
         : [{ date: new Date().toISOString(), text: 'Lead manually created' }],
       followUpDate: '',
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
+      linkedin: newLeadForm.linkedin.trim(),
+      telegram: newLeadForm.telegram.trim(),
+      instagram: newLeadForm.instagram.trim(),
+      wellfound: newLeadForm.wellfound.trim(),
+      indiehackers: newLeadForm.indiehackers.trim(),
+      producthunt: newLeadForm.producthunt.trim()
     }
 
     onSaveLeads([...leads, newLead])
@@ -143,7 +155,13 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
       website: '',
       type: 'client',
       status: 'new',
-      note: ''
+      note: '',
+      linkedin: '',
+      telegram: '',
+      instagram: '',
+      wellfound: '',
+      indiehackers: '',
+      producthunt: ''
     })
   }
 
@@ -370,6 +388,73 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
                           </div>
                           <div className="crm-card-name">{lead.name}</div>
                           <div className="crm-card-company">{lead.company || '—'}</div>
+                          
+                          {/* Social handles badges */}
+                          {(lead.linkedin || lead.telegram || lead.instagram || lead.wellfound || lead.indiehackers || lead.producthunt) && (
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', marginBottom: '6px' }} onClick={e => e.stopPropagation()}>
+                              {lead.linkedin && (
+                                <a 
+                                  href={lead.linkedin.includes('linkedin.com') ? lead.linkedin : `https://linkedin.com/in/${lead.linkedin.replace('@', '')}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="LinkedIn Profile"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  👔 In
+                                </a>
+                              )}
+                              {lead.telegram && (
+                                <a 
+                                  href={lead.telegram.includes('t.me') ? lead.telegram : `https://t.me/${lead.telegram.replace('@', '')}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="Telegram Chat"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#ecfeff', color: '#0891b2', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  ✈️ Tg
+                                </a>
+                              )}
+                              {lead.instagram && (
+                                <a 
+                                  href={lead.instagram.includes('instagram.com') ? lead.instagram : `https://instagram.com/${lead.instagram.replace('@', '')}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="Instagram Profile"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#fdf2f8', color: '#db2777', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  📸 Ig
+                                </a>
+                              )}
+                              {lead.wellfound && (
+                                <a 
+                                  href={lead.wellfound.includes('wellfound.com') || lead.wellfound.includes('angel.co') ? lead.wellfound : `https://wellfound.com/u/${lead.wellfound}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="Wellfound Profile"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#f3f4f6', color: '#1f2937', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  ✌️ Wf
+                                </a>
+                              )}
+                              {lead.indiehackers && (
+                                <a 
+                                  href={lead.indiehackers.includes('indiehackers.com') ? lead.indiehackers : `https://indiehackers.com/${lead.indiehackers}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="Indie Hackers Profile"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  🚀 Ih
+                                </a>
+                              )}
+                              {lead.producthunt && (
+                                <a 
+                                  href={lead.producthunt.includes('producthunt.com') ? lead.producthunt : `https://producthunt.com/@${lead.producthunt.replace('@', '')}`}
+                                  target="_blank" rel="noreferrer"
+                                  title="Product Hunt Profile"
+                                  style={{ fontSize: '0.75rem', textDecoration: 'none', background: '#fff5f5', color: '#e53e3e', borderRadius: '4px', padding: '1px 4px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  😸 Ph
+                                </a>
+                              )}
+                            </div>
+                          )}
+
                           {lead.followUpDate && (
                             <div className="crm-card-followup" style={isOverdue ? { color: 'var(--red)', fontWeight: 500 } : {}}>
                               📅 {new Date(lead.followUpDate).toLocaleDateString()}
@@ -542,6 +627,72 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
+                  <label>LinkedIn handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.linkedin} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, linkedin: e.target.value })}
+                    placeholder="@username or URL"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Telegram handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.telegram} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, telegram: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Instagram handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.instagram} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, instagram: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Wellfound (AngelList)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.wellfound} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, wellfound: e.target.value })}
+                    placeholder="URL or handle"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Indie Hackers</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.indiehackers} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, indiehackers: e.target.value })}
+                    placeholder="username"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Product Hunt</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newLeadForm.producthunt} 
+                    onChange={e => setNewLeadForm({ ...newLeadForm, producthunt: e.target.value })}
+                    placeholder="@username"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
                   <label>Lead Type</label>
                   <select 
                     className="form-input" 
@@ -675,9 +826,75 @@ export default function CRMPanel({ leads, onSaveLeads, onImportLeads, addToast }
                 <input 
                   type="text" 
                   className="form-input" 
-                  value={selectedLead.website} 
+                  value={selectedLead.website || ''} 
                   onChange={e => handleUpdateLeadField('website', e.target.value)}
                 />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label>LinkedIn handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.linkedin || ''} 
+                    onChange={e => handleUpdateLeadField('linkedin', e.target.value)}
+                    placeholder="@username or URL"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Telegram handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.telegram || ''} 
+                    onChange={e => handleUpdateLeadField('telegram', e.target.value)}
+                    placeholder="@username"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label>Instagram handle/link</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.instagram || ''} 
+                    onChange={e => handleUpdateLeadField('instagram', e.target.value)}
+                    placeholder="@username"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Wellfound (AngelList)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.wellfound || ''} 
+                    onChange={e => handleUpdateLeadField('wellfound', e.target.value)}
+                    placeholder="URL or handle"
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label>Indie Hackers</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.indiehackers || ''} 
+                    onChange={e => handleUpdateLeadField('indiehackers', e.target.value)}
+                    placeholder="username"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Product Hunt</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLead.producthunt || ''} 
+                    onChange={e => handleUpdateLeadField('producthunt', e.target.value)}
+                    placeholder="@username"
+                  />
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div className="form-group">

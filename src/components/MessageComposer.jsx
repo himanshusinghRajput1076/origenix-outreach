@@ -134,6 +134,14 @@ Best,
   const templates = isClient ? clientTemplates : investorTemplates
   const templateNames = Object.keys(templates)
 
+  const [activeChannel, setActiveChannel] = useState('email')
+  const [socialLinks, setSocialLinks] = useState([])
+  const [showSocialLinks, setShowSocialLinks] = useState(false)
+
+  useEffect(() => {
+    setPreviewIndex(0)
+  }, [activeChannel])
+
   const [activeTemplate, setActiveTemplate] = useState(templateNames[0])
   const [subject, setSubject] = useState(templates[templateNames[0]].subject)
   const [body, setBody] = useState(templates[templateNames[0]].body)
@@ -620,11 +628,92 @@ Best,
     })
     addToast('Opening links one by one...', 'info')
   }
+  const handleGenerateSocialLinks = () => {
+    if (activeChannelContacts.length === 0) {
+      addToast(`None of your contacts have handles for this channel.`, 'warning')
+      return
+    }
+
+    const compiled = activeChannelContacts.map(contact => {
+      const personalMessage = fillContactVars(fillCompanyVars(body), contact)
+      let link = ''
+      let value = ''
+
+      if (activeChannel === 'linkedin') {
+        value = contact.linkedin
+        link = value.startsWith('http') ? value : `https://linkedin.com/in/${value.replace(/^@/, '')}`
+      } else if (activeChannel === 'telegram') {
+        value = contact.telegram
+        link = value.startsWith('http') ? value : `https://t.me/${value.replace(/^@/, '')}`
+      } else if (activeChannel === 'instagram') {
+        value = contact.instagram
+        link = value.startsWith('http') ? value : `https://instagram.com/${value.replace(/^@/, '')}`
+      } else if (activeChannel === 'platforms') {
+        if (contact.wellfound) {
+          value = 'Wellfound: ' + contact.wellfound
+          link = contact.wellfound.startsWith('http') ? contact.wellfound : `https://wellfound.com/u/${contact.wellfound}`
+        } else if (contact.indiehackers) {
+          value = 'IndieHackers: ' + contact.indiehackers
+          link = contact.indiehackers.startsWith('http') ? contact.indiehackers : `https://indiehackers.com/${contact.indiehackers}`
+        } else if (contact.producthunt) {
+          value = 'ProductHunt: ' + contact.producthunt
+          link = contact.producthunt.startsWith('http') ? contact.producthunt : `https://producthunt.com/@${contact.producthunt.replace(/^@/, '')}`
+        }
+      }
+
+      return {
+        name: contact.name || 'Unknown',
+        value,
+        link,
+        message: personalMessage,
+        contact
+      }
+    })
+
+    setSocialLinks(compiled)
+    setShowSocialLinks(true)
+    addToast(`${compiled.length} outreach links compiled!`, 'success')
+  }
+
+  const openSocialLink = (item) => {
+    if (!item || !item.link) return
+    window.open(item.link, '_blank')
+    logConnection({
+      type: activeChannel,
+      contactName: item.name,
+      contactValue: item.value,
+      company: item.contact?.company || '',
+      status: 'sent',
+      subject: `Outreach on ${activeChannel}`,
+      message: item.message,
+      variant
+    })
+  }
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    addToast('Message copied to clipboard!', 'success')
+  }
 
   const progressPercent = progress.total > 0 ? ((progress.sent + progress.failed) / progress.total) * 100 : 0
 
   const emailContacts = contacts.filter(c => c.email)
-  const currentPreviewContact = emailContacts[previewIndex] || null
+  const phoneContacts = contacts.filter(c => c.phone)
+  const linkedinContacts = contacts.filter(c => c.linkedin)
+  const telegramContacts = contacts.filter(c => c.telegram)
+  const instagramContacts = contacts.filter(c => c.instagram)
+  const platformContacts = contacts.filter(c => c.wellfound || c.indiehackers || c.producthunt)
+
+  // Determine current active list
+  const activeChannelContacts = 
+    activeChannel === 'email' ? emailContacts :
+    activeChannel === 'whatsapp' ? phoneContacts :
+    activeChannel === 'linkedin' ? linkedinContacts :
+    activeChannel === 'telegram' ? telegramContacts :
+    activeChannel === 'instagram' ? instagramContacts :
+    platformContacts
+
+  const currentPreviewContact = activeChannelContacts[previewIndex] || null
 
   const previewSubject = currentPreviewContact
     ? fillContactVars(fillCompanyVars(subject), currentPreviewContact)
@@ -635,13 +724,13 @@ Best,
     : fillCompanyVars(body)
 
   const handlePrevPreview = () => {
-    if (emailContacts.length === 0) return
-    setPreviewIndex(prev => (prev > 0 ? prev - 1 : emailContacts.length - 1))
+    if (activeChannelContacts.length === 0) return
+    setPreviewIndex(prev => (prev > 0 ? prev - 1 : activeChannelContacts.length - 1))
   }
 
   const handleNextPreview = () => {
-    if (emailContacts.length === 0) return
-    setPreviewIndex(prev => (prev < emailContacts.length - 1 ? prev + 1 : 0))
+    if (activeChannelContacts.length === 0) return
+    setPreviewIndex(prev => (prev < activeChannelContacts.length - 1 ? prev + 1 : 0))
   }
 
   const handleExportCSV = () => {
@@ -782,11 +871,83 @@ Best,
   }
 
   return (
-    <div style={emailContacts.length > 0 ? { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' } : {}}>
+    <div style={activeChannelContacts.length > 0 ? { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'start' } : {}}>
       {/* Left Pane: Composer Form */}
       <div className="composer-section" style={{ background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: '12px', padding: '24px' }}>
+        
+        {/* Outreach Channel Tabs Selector */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--gray-200)', gap: '16px', marginBottom: '20px', paddingBottom: '4px', overflowX: 'auto' }}>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('email'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'email' ? '3px solid var(--blue)' : '3px solid transparent',
+              color: activeChannel === 'email' ? 'var(--blue)' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            📧 Email
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('whatsapp'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'whatsapp' ? '3px solid #25d366' : '3px solid transparent',
+              color: activeChannel === 'whatsapp' ? '#25d366' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            💬 WhatsApp
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('linkedin'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'linkedin' ? '3px solid #0077b5' : '3px solid transparent',
+              color: activeChannel === 'linkedin' ? '#0077b5' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            👔 LinkedIn
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('telegram'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'telegram' ? '3px solid #0088cc' : '3px solid transparent',
+              color: activeChannel === 'telegram' ? '#0088cc' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            ✈️ Telegram
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('instagram'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'instagram' ? '3px solid #e1306c' : '3px solid transparent',
+              color: activeChannel === 'instagram' ? '#e1306c' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            📸 Instagram
+          </button>
+          <button 
+            type="button" 
+            onClick={() => { setActiveChannel('platforms'); setShowSocialLinks(false); }}
+            style={{
+              background: 'none', border: 'none', borderBottom: activeChannel === 'platforms' ? '3px solid var(--purple)' : '3px solid transparent',
+              color: activeChannel === 'platforms' ? 'var(--purple)' : 'var(--gray-500)', fontWeight: 600, padding: '8px 12px', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap', transition: 'all 0.2s'
+            }}
+          >
+            🚀 Entrepreneur Platforms
+          </button>
+        </div>
+
         <div className="card-header" style={{ borderBottom: '1px solid var(--gray-100)', paddingBottom: '12px', marginBottom: '16px' }}>
-          <h3 className="card-title">✍️ Compose outreach message</h3>
+          <h3 className="card-title">
+            {activeChannel === 'email' && '📧 Compose Email Campaign'}
+            {activeChannel === 'whatsapp' && '💬 WhatsApp Outreach Links'}
+            {activeChannel === 'linkedin' && '👔 LinkedIn Profile Connects'}
+            {activeChannel === 'telegram' && '✈️ Telegram Direct Messages'}
+            {activeChannel === 'instagram' && '📸 Instagram DM Outreach'}
+            {activeChannel === 'platforms' && '🚀 Entrepreneur Platforms Outreach'}
+          </h3>
         </div>
 
         <p style={{ color: 'var(--gray-500)', fontSize: '0.85rem', marginBottom: '16px' }}>
@@ -803,11 +964,13 @@ Best,
           ))}
         </div>
 
-        <div className="form-group">
-          <label>Subject line</label>
-          <input type="text" className="form-input" value={subject}
-            onChange={e => setSubject(e.target.value)} placeholder="Email subject..." />
-        </div>
+        {activeChannel === 'email' && (
+          <div className="form-group">
+            <label>Subject line</label>
+            <input type="text" className="form-input" value={subject}
+              onChange={e => setSubject(e.target.value)} placeholder="Email subject..." />
+          </div>
+        )}
 
         <div className="form-group">
           <label>Message</label>
@@ -847,23 +1010,25 @@ Best,
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px', marginBottom: '16px' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>Sending Speed / Mode</label>
-            <select
-              className="form-input"
-              value={sendSpeed}
-              onChange={e => setSendSpeed(e.target.value)}
-              disabled={sending}
-              style={{ fontSize: '0.85rem' }}
-            >
-              <option value="gmail">Safe Mode (Gmail) — 1 email / 4s</option>
-              <option value="standard">Standard Mode — ~2 emails / second</option>
-              <option value="turbo">Turbo Mode (SMTP Relays) — High-speed parallel</option>
-              <option value="custom">Custom Speed Settings...</option>
-            </select>
+        {activeChannel === 'email' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px', marginBottom: '16px' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>Sending Speed / Mode</label>
+              <select
+                className="form-input"
+                value={sendSpeed}
+                onChange={e => setSendSpeed(e.target.value)}
+                disabled={sending}
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="gmail">Safe Mode (Gmail) — 1 email / 4s</option>
+                <option value="standard">Standard Mode — ~2 emails / second</option>
+                <option value="turbo">Turbo Mode (SMTP Relays) — High-speed parallel</option>
+                <option value="custom">Custom Speed Settings...</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         {sendSpeed === 'custom' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '4px', marginBottom: '16px', padding: '16px', background: 'var(--gray-50)', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
@@ -897,16 +1062,47 @@ Best,
         )}
 
         <div className="btn-group">
-          <button className={`btn ${isClient ? 'btn-client' : 'btn-investor'} btn-lg`}
-            onClick={handleSendEmails} disabled={sending || contacts.length === 0}>
-            {sending ? <><span className="spinner"></span> Sending {progress.sent + progress.failed} / {progress.total}...</> : `Send emails (${emailContacts.length.toLocaleString()})`}
-          </button>
-          <button className="btn btn-whatsapp btn-lg" onClick={handleWhatsApp} disabled={contacts.length === 0}>
-            WhatsApp links ({contacts.filter(c => c.phone).length.toLocaleString()})
-          </button>
-          <button className="btn btn-secondary btn-lg" onClick={() => setShowExportModal(true)} disabled={contacts.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            📥 Export Mail Merge
-          </button>
+          {activeChannel === 'email' && (
+            <>
+              <button className={`btn ${isClient ? 'btn-client' : 'btn-investor'} btn-lg`}
+                onClick={handleSendEmails} disabled={sending || contacts.length === 0}>
+                {sending ? <><span className="spinner"></span> Sending {progress.sent + progress.failed} / {progress.total}...</> : `Send emails (${emailContacts.length.toLocaleString()})`}
+              </button>
+              <button className="btn btn-secondary btn-lg" onClick={() => setShowExportModal(true)} disabled={contacts.length === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                📥 Export Mail Merge
+              </button>
+            </>
+          )}
+
+          {activeChannel === 'whatsapp' && (
+            <button className="btn btn-whatsapp btn-lg" onClick={handleWhatsApp} disabled={contacts.length === 0}>
+              💬 Generate WhatsApp Links ({contacts.filter(c => c.phone).length.toLocaleString()})
+            </button>
+          )}
+
+          {activeChannel === 'linkedin' && (
+            <button className="btn btn-lg" onClick={handleGenerateSocialLinks} disabled={linkedinContacts.length === 0} style={{ background: '#0077b5', color: '#fff' }}>
+              👔 Generate LinkedIn Links ({linkedinContacts.length.toLocaleString()})
+            </button>
+          )}
+
+          {activeChannel === 'telegram' && (
+            <button className="btn btn-lg" onClick={handleGenerateSocialLinks} disabled={telegramContacts.length === 0} style={{ background: '#0088cc', color: '#fff' }}>
+              ✈️ Generate Telegram Links ({telegramContacts.length.toLocaleString()})
+            </button>
+          )}
+
+          {activeChannel === 'instagram' && (
+            <button className="btn btn-lg" onClick={handleGenerateSocialLinks} disabled={instagramContacts.length === 0} style={{ background: '#e1306c', color: '#fff' }}>
+              📸 Generate Instagram Links ({instagramContacts.length.toLocaleString()})
+            </button>
+          )}
+
+          {activeChannel === 'platforms' && (
+            <button className="btn btn-lg" onClick={handleGenerateSocialLinks} disabled={platformContacts.length === 0} style={{ background: 'var(--purple)', color: '#fff' }}>
+              🚀 Generate Platform Links ({platformContacts.length.toLocaleString()})
+            </button>
+          )}
         </div>
 
         {/* Progress */}
@@ -1020,17 +1216,79 @@ Best,
             </div>
           </div>
         )}
+
+        {/* Omnichannel Social Links list */}
+        {showSocialLinks && socialLinks.length > 0 && (
+          <div className="progress-section">
+            <hr className="section-divider" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--gray-700)', textTransform: 'capitalize' }}>
+                {activeChannel} Outreach Links ({socialLinks.length.toLocaleString()})
+              </h4>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--gray-400)', marginBottom: '12px' }}>
+              Copy the personalized message, click open to view their profile, and paste to connect!
+            </p>
+            <div className="whatsapp-links">
+              {socialLinks.slice(0, 100).map((item, i) => (
+                <div key={i} className="wa-link-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--gray-100)' }}>
+                  <div className="wa-link-info">
+                    <span className="wa-icon">
+                      {activeChannel === 'linkedin' && '👔'}
+                      {activeChannel === 'telegram' && '✈️'}
+                      {activeChannel === 'instagram' && '📸'}
+                      {activeChannel === 'platforms' && '🚀'}
+                    </span>
+                    <div>
+                      <div className="wa-name" style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{item.name}</div>
+                      <div className="wa-phone" style={{ fontSize: '0.78rem', color: 'var(--gray-400)' }}>{item.value}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn btn-sm btn-secondary" 
+                      onClick={() => copyToClipboard(item.message)}
+                      style={{ fontSize: '0.8rem', padding: '4px 8px' }}
+                    >
+                      📋 Copy Msg
+                    </button>
+                    <button 
+                      className="btn btn-sm" 
+                      onClick={() => openSocialLink(item)}
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '4px 8px', 
+                        background: activeChannel === 'linkedin' ? '#0077b5' : activeChannel === 'telegram' ? '#0088cc' : activeChannel === 'instagram' ? '#e1306c' : 'var(--purple)',
+                        color: '#fff',
+                        border: 'none'
+                      }}
+                    >
+                      Open Link
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {socialLinks.length > 100 && (
+                <p style={{ padding: '12px', color: 'var(--gray-400)', fontSize: '0.82rem', textAlign: 'center' }}>
+                  Showing first 100 of {socialLinks.length.toLocaleString()} links.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right Pane: Interactive Live Email Preview */}
-      {emailContacts.length > 0 && currentPreviewContact && (
+      {/* Right Pane: Interactive Live Preview */}
+      {activeChannelContacts.length > 0 && currentPreviewContact && (
         <div style={{ background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: '12px', padding: '24px', position: 'sticky', top: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-100)', paddingBottom: '12px', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--gray-800)' }}>🔍 Live Email Preview</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--gray-800)' }}>
+              🔍 Live {activeChannel === 'email' ? 'Email' : 'Message'} Preview
+            </h3>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={handlePrevPreview} style={{ padding: '4px 8px' }}>◀</button>
               <span style={{ fontSize: '0.82rem', color: 'var(--gray-500)', fontWeight: 500 }}>
-                {previewIndex + 1} / {emailContacts.length}
+                {previewIndex + 1} / {activeChannelContacts.length}
               </span>
               <button type="button" className="btn btn-secondary btn-sm" onClick={handleNextPreview} style={{ padding: '4px 8px' }}>▶</button>
             </div>
@@ -1040,13 +1298,20 @@ Best,
             <div style={{ borderBottom: '1px solid var(--gray-200)', paddingBottom: '12px', marginBottom: '12px' }}>
               <div style={{ marginBottom: '6px', color: 'var(--gray-600)' }}>
                 <strong>To:</strong> {currentPreviewContact.name || 'Unknown'} 
-                {currentPreviewContact.email ? ` <${maskEmail(currentPreviewContact.email)}>` : ''}
+                {activeChannel === 'email' && currentPreviewContact.email && ` <${maskEmail(currentPreviewContact.email)}>`}
+                {activeChannel === 'whatsapp' && currentPreviewContact.phone && ` <${maskPhone(currentPreviewContact.phone)}>`}
+                {activeChannel === 'linkedin' && currentPreviewContact.linkedin && ` [LinkedIn: ${currentPreviewContact.linkedin}]`}
+                {activeChannel === 'telegram' && currentPreviewContact.telegram && ` [Telegram: ${currentPreviewContact.telegram}]`}
+                {activeChannel === 'instagram' && currentPreviewContact.instagram && ` [Instagram: ${currentPreviewContact.instagram}]`}
+                {activeChannel === 'platforms' && (currentPreviewContact.wellfound || currentPreviewContact.indiehackers || currentPreviewContact.producthunt) && ` [Platform profile loaded]`}
                 {currentPreviewContact.designation && ` — ${currentPreviewContact.designation}`}
                 {currentPreviewContact.company && ` @ ${currentPreviewContact.company}`}
               </div>
-              <div style={{ color: 'var(--gray-800)', fontWeight: 600 }}>
-                <strong>Subject:</strong> {previewSubject}
-              </div>
+              {activeChannel === 'email' && (
+                <div style={{ color: 'var(--gray-800)', fontWeight: 600 }}>
+                  <strong>Subject:</strong> {previewSubject}
+                </div>
+              )}
             </div>
             
             <div style={{ 
@@ -1060,7 +1325,7 @@ Best,
               {previewBody}
             </div>
 
-            {companyProfile.attachments && companyProfile.attachments.length > 0 && (
+            {activeChannel === 'email' && companyProfile.attachments && companyProfile.attachments.length > 0 && (
               <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px dotted var(--gray-200)' }}>
                 <strong style={{ display: 'block', fontSize: '0.78rem', color: 'var(--gray-500)', marginBottom: '6px' }}>
                   Attachments ({companyProfile.attachments.length}):

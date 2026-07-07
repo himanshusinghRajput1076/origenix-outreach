@@ -214,6 +214,7 @@ export default function InvestorsPanel({ contacts, setContacts, companyProfile, 
                     <th>Designation</th>
                     <th>Email</th>
                     <th>Phone</th>
+                    <th>Socials</th>
                     <th>Website</th>
                     <th>Products / Activities</th>
                   </tr>
@@ -253,6 +254,53 @@ export default function InvestorsPanel({ contacts, setContacts, companyProfile, 
                               {revealed[`${i}_phone`] ? '🙈' : '👁️'}
                             </button>
                           )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {c.linkedin && (
+                            <a href={c.linkedin.startsWith('http') ? c.linkedin : `https://linkedin.com/in/${c.linkedin.replace('@', '')}`}
+                               target="_blank" rel="noreferrer" title="LinkedIn"
+                               style={{ textDecoration: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              In
+                            </a>
+                          )}
+                          {c.telegram && (
+                            <a href={c.telegram.startsWith('http') ? c.telegram : `https://t.me/${c.telegram.replace('@', '')}`}
+                               target="_blank" rel="noreferrer" title="Telegram"
+                               style={{ textDecoration: 'none', background: '#ecfeff', color: '#0891b2', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              Tg
+                            </a>
+                          )}
+                          {c.instagram && (
+                            <a href={c.instagram.startsWith('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@', '')}`}
+                               target="_blank" rel="noreferrer" title="Instagram"
+                               style={{ textDecoration: 'none', background: '#fdf2f8', color: '#db2777', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              Ig
+                            </a>
+                          )}
+                          {c.wellfound && (
+                            <a href={c.wellfound.startsWith('http') ? c.wellfound : `https://wellfound.com/u/${c.wellfound}`}
+                               target="_blank" rel="noreferrer" title="Wellfound"
+                               style={{ textDecoration: 'none', background: '#f3f4f6', color: '#1f2937', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              Wf
+                            </a>
+                          )}
+                          {c.indiehackers && (
+                            <a href={c.indiehackers.startsWith('http') ? c.indiehackers : `https://indiehackers.com/${c.indiehackers}`}
+                               target="_blank" rel="noreferrer" title="Indie Hackers"
+                               style={{ textDecoration: 'none', background: '#fef3c7', color: '#d97706', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              Ih
+                            </a>
+                          )}
+                          {c.producthunt && (
+                            <a href={c.producthunt.startsWith('http') ? c.producthunt : `https://producthunt.com/@${c.producthunt.replace('@', '')}`}
+                               target="_blank" rel="noreferrer" title="Product Hunt"
+                               style={{ textDecoration: 'none', background: '#fff5f5', color: '#e53e3e', borderRadius: '4px', padding: '2px 6px', fontSize: '0.72rem', fontWeight: 600 }}>
+                              Ph
+                            </a>
+                          )}
+                          {!c.linkedin && !c.telegram && !c.instagram && !c.wellfound && !c.indiehackers && !c.producthunt && '—'}
                         </div>
                       </td>
                       <td>

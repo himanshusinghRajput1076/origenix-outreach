@@ -124,13 +124,18 @@ function App() {
   }
 
   const checkSmtpConnection = async (config) => {
-    // Use the passed config or fall back to current smtpConfig state
     const cfg = config || smtpConfig
     if (!cfg || !cfg.email || !cfg.password) {
       setSmtpStatus('disconnected')
       return
     }
     setSmtpStatus('checking')
+    
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      setSmtpStatus('sleeping')
+    }, 6000)
+
     try {
       const res = await fetch(`${API_BASE}/test-smtp`, {
         method: 'POST',
@@ -140,16 +145,45 @@ function App() {
           fromPassword: cfg.password,
           smtpHost: cfg.host,
           smtpPort: cfg.port
-        })
+        }),
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
       const data = await res.json()
       if (res.ok && data.success) {
         setSmtpStatus('connected')
       } else {
         setSmtpStatus('error')
       }
-    } catch {
-      setSmtpStatus('error')
+    } catch (err) {
+      clearTimeout(timeoutId)
+      setSmtpStatus('sleeping')
+      
+      // Wait for Render to wake up in the background
+      setTimeout(() => {
+        fetch(`${API_BASE}/test-smtp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromEmail: cfg.email,
+            fromPassword: cfg.password,
+            smtpHost: cfg.host,
+            smtpPort: cfg.port
+          })
+        })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            setSmtpStatus('connected')
+            addToast('Backend server is awake! SMTP verified.', 'success')
+          } else {
+            setSmtpStatus('error')
+          }
+        })
+        .catch(() => {
+          setSmtpStatus('error')
+        })
+      }, 10000)
     }
   }
 
@@ -218,7 +252,13 @@ function App() {
           status: 'new',
           notes: [{ date: new Date().toISOString(), text: 'Lead imported from Excel list' }],
           followUpDate: '',
-          addedAt: new Date().toISOString()
+          addedAt: new Date().toISOString(),
+          linkedin: c.linkedin || '',
+          telegram: c.telegram || '',
+          instagram: c.instagram || '',
+          wellfound: c.wellfound || '',
+          indiehackers: c.indiehackers || '',
+          producthunt: c.producthunt || ''
         })
         importedCount++
       }

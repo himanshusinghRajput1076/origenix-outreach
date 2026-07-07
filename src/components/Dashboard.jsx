@@ -58,6 +58,7 @@ export default function Dashboard({
       case 'connected': return '#22c55e'
       case 'error': return '#ef4444'
       case 'checking': return '#f59e0b'
+      case 'sleeping': return '#a855f7'
       default: return '#64748b'
     }
   }
@@ -89,10 +90,14 @@ export default function Dashboard({
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--white)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--gray-200)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: getSmtpLabelColor() }} />
-            <span style={{ fontWeight: 500, color: 'var(--gray-700)' }}>
-              SMTP: {smtpStatus === 'connected' ? 'Connected' : smtpStatus === 'error' ? 'Connection Error' : smtpStatus === 'checking' ? 'Testing...' : 'Not Configured'}
+            <span 
+              onClick={() => onNavigate('profile')} 
+              style={{ fontWeight: 600, color: 'var(--gray-700)', cursor: 'pointer', textDecoration: 'underline' }}
+              title="Click to configure SMTP settings"
+            >
+              SMTP: {smtpStatus === 'connected' ? 'Connected' : smtpStatus === 'error' ? 'Connection Error' : smtpStatus === 'checking' ? 'Testing...' : smtpStatus === 'sleeping' ? 'Waking Server...' : 'Not Configured'}
             </span>
-            <button className="btn btn-sm btn-secondary" onClick={() => onCheckSmtp()} style={{ padding: '2px 6px', fontSize: '0.72rem' }} disabled={smtpStatus === 'checking'}>
+            <button className="btn btn-sm btn-secondary" onClick={() => onCheckSmtp()} style={{ padding: '2px 6px', fontSize: '0.72rem' }} disabled={smtpStatus === 'checking' || smtpStatus === 'sleeping'}>
               🔄 Test
             </button>
           </div>

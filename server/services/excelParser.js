@@ -89,6 +89,32 @@ const COLUMN_ALIASES = {
   "business activity": "activities",
   "business activities": "activities",
   "nature of business": "activities",
+
+  // Social / Omnichannel Profiles
+  linkedin: "linkedin",
+  "linkedin url": "linkedin",
+  "linkedin profile": "linkedin",
+  "linkedin link": "linkedin",
+  telegram: "telegram",
+  "telegram handle": "telegram",
+  "telegram username": "telegram",
+  "telegram link": "telegram",
+  "t.me": "telegram",
+  instagram: "instagram",
+  "instagram handle": "instagram",
+  "instagram username": "instagram",
+  "instagram link": "instagram",
+  ig: "instagram",
+  wellfound: "wellfound",
+  angellist: "wellfound",
+  "angel.co": "wellfound",
+  "wellfound link": "wellfound",
+  indiehackers: "indiehackers",
+  "indie hackers": "indiehackers",
+  "indie hackers link": "indiehackers",
+  producthunt: "producthunt",
+  "product hunt": "producthunt",
+  "product hunt link": "producthunt",
 };
 
 /**
